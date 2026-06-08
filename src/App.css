@@ -2164,6 +2164,33 @@ body {
 .sal-plus  { color: var(--green) !important; }
 .sal-minus { color: var(--red)   !important; }
 
+/* Monthly cumulative summary row — shown first in the net salary breakdown */
+.sal-net-cumulative-row {
+  background: linear-gradient(90deg, rgba(0,230,118,0.07), transparent);
+  border: 1px solid rgba(0,230,118,0.22);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.3rem;
+  align-items: flex-start !important;
+}
+.sal-net-cumulative-row .sal-net-lbl {
+  color: var(--green) !important;
+  font-size: 0.83rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sal-net-lbl-sub {
+  font-size: 0.73rem;
+  color: var(--text-sub);
+  font-style: italic;
+}
+.sal-net-cumulative-row .sal-net-val {
+  font-size: 1.1rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
 .sal-net-divider {
   height: 1px;
   background: linear-gradient(90deg, var(--amber), transparent);

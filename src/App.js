@@ -877,7 +877,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
 // ═══════════════════════════════════════════════════════════════
 //  SALARY DASHBOARD  –  Admin salary structure editor
 // ═══════════════════════════════════════════════════════════════
-function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dailyRecords }) {
+function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dailyRecords, employeeSettings, paymentLedger }) {
   const staff   = employees.filter(e => e.role !== 'Administrator' && e.role !== 'Admin Manager');
   const now     = new Date();
   const [selId, setSelId] = useState(staff[0]?.id ?? null);
@@ -889,6 +889,29 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
   const calc   = (selId && struct)
     ? computeMonthSalary(struct, dailyRecords, selId, selYear, selMo)
     : null;
+
+  // ── Monthly cumulative sum (same logic as EmployeeSalaryView) ──
+  const monthlyCumulative = React.useMemo(() => {
+    if (!selId) return 0;
+    const otRate = getOTRate(employeeSettings, selId);
+    const daysInMonth = new Date(selYear, selMo + 1, 0).getDate();
+    let cumSum = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dk  = `${selYear}-${String(selMo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const rec = dailyRecords[dk]?.[selId];
+      const payment    = rec?.status === 'present' ? (rec?.payment || 0) : 0;
+      const stdH       = rec?.standardHours || 8;
+      const otHours    = rec?.status === 'present' ? (rec?.overtimeHours || 0) : 0;
+      const utHours    = rec?.status === 'present' ? calcUnderTime(rec?.timeIn, rec?.timeOut, stdH) : 0;
+      const hourlyRate = stdH > 0 ? payment / stdH : 0;
+      const otPay      = parseFloat((otHours * otRate).toFixed(2));
+      const utPay      = parseFloat((utHours * hourlyRate).toFixed(2));
+      const totalDaily = Math.max(0, payment + otPay - utPay);
+      const paidAmount = rec?.paidAmount || 0;
+      cumSum += totalDaily - paidAmount;
+    }
+    return cumSum;
+  }, [selId, selMo, selYear, dailyRecords, employeeSettings]);
 
   const upd = fn =>
     setSalaryStructures(prev => ({ ...prev, [selId]: fn(getEmpSalary(prev, selId)) }));
@@ -1078,6 +1101,17 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
           <div className="sal-net-card">
             <div className="sal-net-title">⚡ NET SALARY — {MONTH_NAMES[selMo]} {selYear}</div>
             <div className="sal-net-formula">
+              {/* Monthly cumulative sum — first step */}
+              <div className="sal-net-row sal-net-cumulative-row">
+                <span className="sal-net-lbl">
+                  📊 Monthly Cumulative Sum after all payment deductions
+                  <span className="sal-net-lbl-sub"> (attendance earnings − payments received)</span>
+                </span>
+                <span className={`sal-net-val ${monthlyCumulative < 0 ? 'sal-minus' : 'sal-plus'}`}>
+                  {monthlyCumulative < 0 ? '−' : ''}₹{Math.abs(monthlyCumulative).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <div className="sal-net-divider" />
               <div className="sal-net-row">
                 <span className="sal-net-lbl">Basic Salary ({calc.presentDays} days × ₹{(struct.dailyRate||0).toLocaleString('en-IN')})</span>
                 <span className="sal-net-val">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
@@ -2480,6 +2514,8 @@ function AdminDashboard({
           salaryStructures={salaryStructures}
           setSalaryStructures={setSalaryStructures}
           dailyRecords={dailyRecords}
+          employeeSettings={employeeSettings}
+          paymentLedger={paymentLedger}
         />
       )}
 
