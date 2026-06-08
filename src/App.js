@@ -108,6 +108,14 @@ function calcOvertime(timeIn, timeOut, standardHours) {
   return Math.max(0, parseFloat((workedHrs - (Number(standardHours) || 8)).toFixed(2)));
 }
 
+function calcUnderTime(timeIn, timeOut, standardHours) {
+  const inM  = parseTimeMins(timeIn);
+  const outM = parseTimeMins(timeOut);
+  if (inM === null || outM === null || outM <= inM) return 0;
+  const workedHrs = (outM - inM) / 60;
+  return Math.max(0, parseFloat(((Number(standardHours) || 8) - workedHrs).toFixed(2)));
+}
+
 function getOTRate(employeeSettings, empId) {
   return Number(employeeSettings?.[empId]?.overtimeRate) || 0;
 }
@@ -1090,7 +1098,7 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
 //  Monthly overview + Character Profile section (admin-only)
 // ═══════════════════════════════════════════════════════════════
 function AdminEmployeeProfile({
-  employee, month, year, dailyRecords, onBack,
+  employee, month, year, dailyRecords, setDailyRecords, onBack,
   characterProfiles, setCharacterProfiles,
   employeeSettings, setEmployeeSettings,
   salaryStructures,
@@ -1149,10 +1157,12 @@ function AdminEmployeeProfile({
           employee={employee}
           month={month} year={year}
           dailyRecords={dailyRecords}
+          setDailyRecords={setDailyRecords}
           salaryStructures={salaryStructures}
           employeeSettings={employeeSettings}
           paymentLedger={paymentLedger}
           setPaymentLedger={setPaymentLedger}
+          isAdmin={true}
         />
       )}
 
@@ -1847,6 +1857,7 @@ function AdminDashboard({
             month={month}
             year={year}
             dailyRecords={dailyRecords}
+            setDailyRecords={setDailyRecords}
             onBack={() => setSelectedEmpId(null)}
             characterProfiles={characterProfiles}
             setCharacterProfiles={setCharacterProfiles}
@@ -1934,6 +1945,7 @@ function AdminDashboard({
                     <th>Employee Name</th>
                     <th>Present / Absent</th>
                     <th>Work Time</th>
+                    <th>Under Time</th>
                     <th>Salary (₹)</th>
                   </tr>
                 </thead>
@@ -1950,6 +1962,9 @@ function AdminDashboard({
                     const isPaymentDisabled  = status !== 'present';
                     const displayPayment     = isPaymentDisabled ? 0 : record.payment;
                     const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
+                    const underTimeHours     = status === 'present'
+                      ? calcUnderTime(record.timeIn, record.timeOut, record.standardHours || 8)
+                      : 0;
 
                     return (
                       <tr key={emp.id} className="trow">
@@ -2017,6 +2032,13 @@ function AdminDashboard({
                           )}
                         </td>
                         <td>
+                          {status === 'present' && underTimeHours > 0 ? (
+                            <span className="ut-badge">⏱ {underTimeHours}h</span>
+                          ) : (
+                            <span className="td-dash">—</span>
+                          )}
+                        </td>
+                        <td>
                           <div className="worksite-cell">
                             <div className="pay-cell">
                               <span className="rupee">₹</span>
@@ -2043,7 +2065,7 @@ function AdminDashboard({
                 </tbody>
                 <tfoot>
                   <tr className="tfoot-row">
-                    <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
+                    <td colSpan={5} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
                       DAILY TOTAL
                     </td>
                     <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>
@@ -2253,39 +2275,71 @@ function PaidStatusBox({ empId, year, month, dailyRecords, employeeSettings, pay
 //  EMPLOYEE PROFILE EMP-VIEW  —  shown inside AdminEmployeeProfile
 //  Mirrors what the employee sees, PAID box is admin-interactive
 // ═══════════════════════════════════════════════════════════════
-function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStructures, employeeSettings, paymentLedger, setPaymentLedger }) {
+function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyRecords, salaryStructures, employeeSettings, paymentLedger, setPaymentLedger, isAdmin }) {
   const [activeTab, setActiveTab] = useState('attendance');
+  // payInput keyed by dateKey — admin's per-row payment amount draft
+  const [payInputs, setPayInputs] = useState({});
+
   const otRate      = getOTRate(employeeSettings, employee.id);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const rows = Array.from({ length: daysInMonth }, (_, i) => {
-    const dayNum  = i + 1;
-    const d       = new Date(year, month, dayNum);
-    const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
-    const record  = dailyRecords[dateKey]?.[employee.id];
-    const payment = record?.status === 'present' ? (record?.payment || 0) : 0;
-    const otHours = record?.status === 'present' ? (record?.overtimeHours || 0) : 0;
-    const otPay   = parseFloat((otHours * otRate).toFixed(2));
+    const dayNum    = i + 1;
+    const d         = new Date(year, month, dayNum);
+    const dateKey   = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    const record    = dailyRecords[dateKey]?.[employee.id];
+    const payment   = record?.status === 'present' ? (record?.payment || 0) : 0;
+    const stdH      = record?.standardHours || 8;
+    const otHours   = record?.status === 'present' ? (record?.overtimeHours || 0) : 0;
+    const utHours   = record?.status === 'present'
+      ? calcUnderTime(record?.timeIn, record?.timeOut, stdH)
+      : 0;
+    const hourlyRate  = stdH > 0 ? payment / stdH : 0;
+    const otPay       = parseFloat((otHours * otRate).toFixed(2));
+    const utPay       = parseFloat((utHours * hourlyRate).toFixed(2));
+    const totalDaily  = Math.max(0, payment + otPay - utPay);
+    const paidAmount  = record?.paidAmount || 0;
+    const paidStatus  = record?.paidStatus || null;
     return {
-      date: dayNum, dayName: DAY_NAMES[d.getDay()],
+      date: dayNum, dayName: DAY_NAMES[d.getDay()], dateKey,
       status: record?.status ?? null, payment,
-      otHours, otPay,
-      totalDaily: payment + otPay,
+      otHours, otPay, utHours, utPay, totalDaily, paidAmount, paidStatus,
     };
   });
 
+  // Cumulative = running totalDaily - paid amounts
   let running = 0;
-  const enriched = rows.map(r => { running += r.totalDaily; return { ...r, cumulative: running }; });
+  const enriched = rows.map(r => {
+    running += r.totalDaily;
+    running -= r.paidAmount;
+    return { ...r, cumulative: running };
+  });
 
   const presentCount = rows.filter(r => r.status === 'present').length;
   const absentCount  = rows.filter(r => r.status === 'absent').length;
   const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
   const totalOTPay   = rows.reduce((s, r) => s + r.otPay, 0);
-  const totalAllPay  = totalPayment + totalOTPay;
+  const totalUTPay   = rows.reduce((s, r) => s + r.utPay, 0);
+  const totalAllPay  = rows.reduce((s, r) => s + r.totalDaily, 0);
+
+  const handleMarkPaid = (dateKey, amount) => {
+    if (!setDailyRecords) return;
+    setDailyRecords(prev => {
+      const existing = (prev[dateKey] || {})[employee.id] || {};
+      return {
+        ...prev,
+        [dateKey]: {
+          ...(prev[dateKey] || {}),
+          [employee.id]: { ...existing, paidAmount: Number(amount) || 0, paidStatus: 'paid' },
+        },
+      };
+    });
+    setPayInputs(prev => ({ ...prev, [dateKey]: undefined }));
+  };
 
   return (
     <div className="emp-view-preview">
-      {/* Stats strip — identical to employee view */}
+      {/* Stats strip */}
       <div className="stats-strip emp-preview-strip">
         <StatCard label="Days Present"  value={presentCount}                                          accentColor="#00C853" />
         <StatCard label="Days Absent"   value={absentCount}                                           accentColor="#FF1744" />
@@ -2321,48 +2375,103 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
         />
       )}
 
-      {/* Attendance table (read-only) */}
+      {/* Attendance table */}
       {activeTab === 'attendance' && (
         <div className="tbl-wrap">
           <table className="att-tbl">
             <thead>
               <tr>
                 <th>Date</th><th>Day</th><th>Attendance Status</th>
-                <th>Base Pay (₹)</th><th>Total Daily (₹)</th>
+                <th>Base Pay (₹)</th><th>Under Time</th><th>Daily Total (₹)</th>
+                <th>Cumulative (₹)</th>
+                {isAdmin && <th>Payment</th>}
               </tr>
             </thead>
             <tbody>
-              {enriched.map(r => (
-                <tr key={r.date} className="trow">
-                  <td className="td-date">{String(r.date).padStart(2,'0')}</td>
-                  <td className="td-day">{r.dayName}</td>
-                  <td>
-                    {r.status === 'present' ? <span className="badge-off att-present">● PRESENT</span>
-                     : r.status === 'absent' ? <span className="badge-off att-absent">● ABSENT</span>
-                     : <span className="badge-off att-pending">○ NOT MARKED</span>}
-                  </td>
-                  <td>
-                    <div className="pay-cell">
-                      <span className="rupee">₹</span>
-                      <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
-                    </div>
-                  </td>
-                  <td className="td-cum">
-                    <div className="total-daily-cell">
-                      <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
-                      {r.otHours > 0 && (
-                        <span className="total-daily-sub">+{r.otHours}h OT × ₹{otRate} = ₹{r.otPay.toLocaleString('en-IN')}</span>
+              {enriched.map(r => {
+                const payDraft = payInputs[r.dateKey] !== undefined ? payInputs[r.dateKey] : r.totalDaily;
+                return (
+                  <tr key={r.date} className="trow">
+                    <td className="td-date">{String(r.date).padStart(2,'0')}</td>
+                    <td className="td-day">{r.dayName}</td>
+                    <td>
+                      {r.status === 'present' ? <span className="badge-off att-present">● PRESENT</span>
+                       : r.status === 'absent' ? <span className="badge-off att-absent">● ABSENT</span>
+                       : <span className="badge-off att-pending">○ NOT MARKED</span>}
+                    </td>
+                    <td>
+                      <div className="pay-cell">
+                        <span className="rupee">₹</span>
+                        <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
+                      </div>
+                    </td>
+                    <td>
+                      {r.utHours > 0 ? (
+                        <div className="ut-cell">
+                          <span className="ut-badge">⏱ {r.utHours}h</span>
+                          <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
+                        </div>
+                      ) : (
+                        <span className="td-dash">—</span>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="td-cum">
+                      <div className="total-daily-cell">
+                        <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
+                        {r.otHours > 0 && (
+                          <span className="total-daily-sub">+{r.otHours}h OT × ₹{otRate}</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="td-cum">
+                      <div className="cum-cell">
+                        <span className={`cum-amt ${r.cumulative < 0 ? 'cum-negative' : ''}`}>
+                          ₹{r.cumulative.toLocaleString('en-IN')}
+                        </span>
+                        {r.paidAmount > 0 && (
+                          <span className="cum-paid-sub">−₹{r.paidAmount.toLocaleString('en-IN')} paid</span>
+                        )}
+                      </div>
+                    </td>
+                    {isAdmin && (
+                      <td>
+                        {r.status === 'present' ? (
+                          r.paidStatus === 'paid' ? (
+                            <span className="paid-row-badge">✓ PAID ₹{r.paidAmount.toLocaleString('en-IN')}</span>
+                          ) : (
+                            <div className="pay-action-cell">
+                              <div className="pay-cell">
+                                <span className="rupee">₹</span>
+                                <input
+                                  type="number" min="0"
+                                  className="pay-inp pay-inp-sm"
+                                  value={payDraft}
+                                  onChange={e => setPayInputs(prev => ({ ...prev, [r.dateKey]: e.target.value }))}
+                                />
+                              </div>
+                              <button
+                                className="pay-paid-btn"
+                                onClick={() => handleMarkPaid(r.dateKey, payDraft)}
+                              >✓ Paid</button>
+                            </div>
+                          )
+                        ) : (
+                          <span className="td-dash">—</span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="tfoot-row">
                 <td colSpan={3} className="tfoot-lbl">MONTHLY TOTAL</td>
                 <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
+                <td className="tfoot-amt tfoot-ut">−₹{totalUTPay.toLocaleString('en-IN')}</td>
                 <td className="tfoot-amt">₹{totalAllPay.toLocaleString('en-IN')}</td>
+                <td className="tfoot-amt">₹{running.toLocaleString('en-IN')}</td>
+                {isAdmin && <td></td>}
               </tr>
             </tfoot>
           </table>
@@ -2390,8 +2499,16 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
     const record  = dailyRecords[dateKey]?.[employee.id];
     const payment = record?.status === 'present' ? (record?.payment || 0) : 0;
+    const stdH    = record?.standardHours || 8;
     const otHours = (record?.status === 'present' ? (record?.overtimeHours || 0) : 0);
-    const otPay   = parseFloat((otHours * otRate).toFixed(2));
+    const utHours = record?.status === 'present'
+      ? calcUnderTime(record?.timeIn, record?.timeOut, stdH)
+      : 0;
+    const hourlyRate = stdH > 0 ? payment / stdH : 0;
+    const otPay     = parseFloat((otHours * otRate).toFixed(2));
+    const utPay     = parseFloat((utHours * hourlyRate).toFixed(2));
+    const paidAmount = record?.paidAmount || 0;
+    const paidStatus = record?.paidStatus || null;
     return {
       date:       dayNum,
       dayName:    DAY_NAMES[d.getDay()],
@@ -2399,13 +2516,18 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
       payment,
       otHours,
       otPay,
-      totalDaily: payment + otPay,
+      utHours,
+      utPay,
+      paidAmount,
+      paidStatus,
+      totalDaily: Math.max(0, payment + otPay - utPay),
     };
   });
 
   let runningTotal = 0;
   const enriched = rows.map(r => {
     runningTotal += r.totalDaily;
+    runningTotal -= r.paidAmount;
     return { ...r, cumulative: runningTotal };
   });
 
@@ -2415,7 +2537,8 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
   const totalPayment       = rows.reduce((s, r) => s + r.payment, 0);
   const totalOTHours       = rows.reduce((s, r) => s + r.otHours, 0);
   const totalOTPay         = rows.reduce((s, r) => s + r.otPay, 0);
-  const totalAllPay        = totalPayment + totalOTPay;
+  const totalUTPay         = rows.reduce((s, r) => s + r.utPay, 0);
+  const totalAllPay        = rows.reduce((s, r) => s + r.totalDaily, 0);
 
   return (
     <div className="dashboard">
@@ -2500,7 +2623,9 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
               <th>Day</th>
               <th>Attendance Status</th>
               <th>Base Pay (₹)</th>
-              <th>Total Daily (₹)</th>
+              <th>Under Time</th>
+              <th>Daily Total (₹)</th>
+              <th>Cumulative (₹)</th>
             </tr>
           </thead>
           <tbody>
@@ -2523,12 +2648,34 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
                     <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
                   </div>
                 </td>
+                <td>
+                  {r.utHours > 0 ? (
+                    <div className="ut-cell">
+                      <span className="ut-badge">⏱ {r.utHours}h</span>
+                      <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
+                    </div>
+                  ) : (
+                    <span className="td-dash">—</span>
+                  )}
+                </td>
                 <td className="td-cum">
                   <div className="total-daily-cell">
                     <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
                     {r.otHours > 0 && (
                       <span className="total-daily-sub">
-                        +{r.otHours}h OT × ₹{otRate} = ₹{r.otPay.toLocaleString('en-IN')}
+                        +{r.otHours}h OT × ₹{otRate}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="td-cum">
+                  <div className="cum-cell">
+                    <span className={`cum-amt ${r.cumulative < 0 ? 'cum-negative' : ''}`}>
+                      ₹{r.cumulative.toLocaleString('en-IN')}
+                    </span>
+                    {r.paidAmount > 0 && (
+                      <span className="cum-paid-sub">
+                        {r.paidStatus === 'paid' ? '✓ Paid Till Now' : `−₹${r.paidAmount.toLocaleString('en-IN')}`}
                       </span>
                     )}
                   </div>
@@ -2540,7 +2687,9 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
             <tr className="tfoot-row">
               <td colSpan={3} className="tfoot-lbl">MONTHLY TOTAL</td>
               <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
+              <td className="tfoot-amt tfoot-ut">−₹{totalUTPay.toLocaleString('en-IN')}</td>
               <td className="tfoot-amt">₹{totalAllPay.toLocaleString('en-IN')}</td>
+              <td className="tfoot-amt">₹{runningTotal.toLocaleString('en-IN')}</td>
             </tr>
           </tfoot>
         </table>

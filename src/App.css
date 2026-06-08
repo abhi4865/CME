@@ -3063,3 +3063,92 @@ body {
   text-transform: uppercase;
   align-self: flex-start;
 }
+
+/* ── Under Time badge (admin daily table + employee rows) ── */
+.ut-badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  background: #ff174422;
+  border: 1px solid #ff174466;
+  border-radius: 20px;
+  color: #ff6b6b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: var(--mono);
+}
+
+.ut-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-start;
+}
+
+.ut-deduct {
+  font-size: 0.7rem;
+  color: #ff6b6baa;
+  font-family: var(--mono);
+}
+
+/* ── Cumulative cell ── */
+.cum-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.cum-negative {
+  color: #ff6b6b !important;
+}
+
+.cum-paid-sub {
+  font-size: 0.68rem;
+  color: #00C853aa;
+  font-family: var(--mono);
+}
+
+/* ── Per-row payment action (admin only) ── */
+.pay-action-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.pay-inp-sm {
+  width: 70px !important;
+}
+
+.pay-paid-btn {
+  padding: 0.2rem 0.65rem;
+  background: #00C85322;
+  border: 1px solid #00C85366;
+  border-radius: 6px;
+  color: #00C853;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.15s;
+}
+.pay-paid-btn:hover {
+  background: #00C85344;
+}
+
+.paid-row-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: #00C85322;
+  border: 1px solid #00C85366;
+  border-radius: 12px;
+  color: #00C853;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.tfoot-ut {
+  color: #ff6b6b;
+}
