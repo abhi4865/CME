@@ -155,9 +155,10 @@ function StatCard({ label, value, accentColor }) {
 function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  let presentDays     = 0;
+  let presentDays      = 0;
+  let absentDays       = 0;
   let totalWorkingDays = 0;
-  let totalSalary     = 0;
+  let totalSalary      = 0;
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateObj   = new Date(year, month, d);
@@ -168,12 +169,11 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
       const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const record  = dailyRecords[dateKey]?.[employee.id];
 
-      if (record?.present)  presentDays++;
-      if (record?.payment)  totalSalary += record.payment;
+      if (record?.status === 'present') presentDays++;
+      if (record?.status === 'absent')  absentDays++;
+      if (record?.payment) totalSalary += record.payment;
     }
   }
-
-  const absentDays = totalWorkingDays - presentDays;
 
   return (
     <>
@@ -211,8 +211,8 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
 // ═══════════════════════════════════════════════════════════════
 function AdminDashboard({ employee, onLogout }) {
   const now  = new Date();
-  const [year]  = useState(now.getFullYear());
-  const [month, setMonth]         = useState(now.getMonth());
+  const [year,  setYear]  = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
   const [day,   setDay]           = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
 
@@ -231,16 +231,20 @@ function AdminDashboard({ employee, onLogout }) {
   const currentDayData = dailyRecords[dateKey] || {};
 
   // ── Mutations ──
-  const togglePresent = empId => {
-    const empData = currentDayData[empId] || { present: false, payment: 0 };
+  // 3-state cycle: null (MARK) → 'present' → 'absent' → null
+  const cycleStatus = empId => {
+    const empData = currentDayData[empId] || { status: null, payment: 0 };
+    const next = empData.status === null ? 'present'
+               : empData.status === 'present' ? 'absent'
+               : null;
     setDailyRecords(prev => ({
       ...prev,
-      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, present: !empData.present } },
+      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, status: next } },
     }));
   };
 
   const setPayment = (empId, val) => {
-    const empData = currentDayData[empId] || { present: false, payment: 0 };
+    const empData = currentDayData[empId] || { status: null, payment: 0 };
     setDailyRecords(prev => ({
       ...prev,
       [dateKey]: { ...prev[dateKey], [empId]: { ...empData, payment: Math.max(0, parseInt(val) || 0) } },
@@ -248,14 +252,16 @@ function AdminDashboard({ employee, onLogout }) {
   };
 
   // ── Daily Totals for Stats Strip ──
+  // Only count employees that have been explicitly marked (not null)
   let presentCount = 0;
-  let absentCount  = staff.length;
+  let absentCount  = 0;
   let totalDailyPayment = 0;
 
   staff.forEach(emp => {
     const data = currentDayData[emp.id];
-    if (data?.present)  { presentCount++; absentCount--; }
-    if (data?.payment)  { totalDailyPayment += data.payment; }
+    if (data?.status === 'present') presentCount++;
+    if (data?.status === 'absent')  absentCount++;
+    if (data?.payment)              totalDailyPayment += data.payment;
   });
 
   const selectedEmployee = staff.find(e => e.id === selectedEmpId);
@@ -320,7 +326,7 @@ function AdminDashboard({ employee, onLogout }) {
             </div>
 
             <div className="day-picker-wrap">
-              <label className="day-picker-lbl">Select Date:</label>
+              <label className="day-picker-lbl">Date:</label>
               <select
                 className="day-select"
                 value={day}
@@ -328,9 +334,21 @@ function AdminDashboard({ employee, onLogout }) {
               >
                 {Array.from({ length: daysInMonth }, (_, i) => (
                   <option key={i + 1} value={i + 1}>
-                    {i + 1} {MONTH_NAMES[month]} {year}
+                    {i + 1} {MONTH_NAMES[month]}
                   </option>
                 ))}
+              </select>
+
+              <label className="day-picker-lbl">Year:</label>
+              <select
+                className="day-select"
+                value={year}
+                onChange={e => setYear(Number(e.target.value))}
+              >
+                {Array.from({ length: 6 }, (_, i) => {
+                  const y = now.getFullYear() - 2 + i;
+                  return <option key={y} value={y}>{y}</option>;
+                })}
               </select>
             </div>
           </div>
@@ -348,7 +366,8 @@ function AdminDashboard({ employee, onLogout }) {
               </thead>
               <tbody>
                 {staff.map((emp, index) => {
-                  const record = currentDayData[emp.id] || { present: false, payment: 0 };
+                  const record = currentDayData[emp.id] || { status: null, payment: 0 };
+                  const status = record.status; // null | 'present' | 'absent'
                   return (
                     <tr key={emp.id} className="trow">
 
@@ -369,13 +388,19 @@ function AdminDashboard({ employee, onLogout }) {
                         </div>
                       </td>
 
-                      {/* Present / Absent Toggle */}
+                      {/* 3-state Attendance Button: MARK → Present → Absent → MARK */}
                       <td>
                         <button
-                          className={`att-btn ${record.present ? 'att-present' : 'att-absent'}`}
-                          onClick={() => togglePresent(emp.id)}
+                          className={`att-btn ${
+                            status === 'present' ? 'att-present'
+                            : status === 'absent' ? 'att-absent'
+                            : 'att-mark'
+                          }`}
+                          onClick={() => cycleStatus(emp.id)}
                         >
-                          {record.present ? '✓  Present' : '✗  Absent'}
+                          {status === 'present' ? '✓  Present'
+                           : status === 'absent' ? '✗  Absent'
+                           : '— Mark'}
                         </button>
                       </td>
 
