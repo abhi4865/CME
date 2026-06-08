@@ -1214,24 +1214,6 @@ function AdminDashboard({
   const staff          = employees.filter(e => e.role !== 'Administrator');
   const currentDayData = dailyRecords[dateKey] || {};
 
-  // ── Inherited worksite ──────────────────────────────────────────
-  const getInheritedWorksite = empId => {
-    for (let d = day; d >= 1; d--) {
-      const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const rec = dailyRecords[k]?.[empId];
-      if (rec?.worksiteSet) return rec.worksite;
-    }
-    const allKeys = Object.keys(dailyRecords).sort();
-    const cutoff  = dateKey;
-    for (let i = allKeys.length - 1; i >= 0; i--) {
-      const k = allKeys[i];
-      if (k >= cutoff) continue;
-      const rec = dailyRecords[k]?.[empId];
-      if (rec?.worksiteSet) return rec.worksite;
-    }
-    return '';
-  };
-
   // ── Inherited salary ────────────────────────────────────────────
   const getInheritedSalary = empId => {
     for (let d = day - 1; d >= 1; d--) {
@@ -1276,14 +1258,6 @@ function AdminDashboard({
         ...prev[dateKey],
         [empId]: { ...empData, payment: Math.max(0, parseInt(val) || 0), paymentSet: true },
       },
-    }));
-  };
-
-  const setWorksite = (empId, val) => {
-    const empData = currentDayData[empId] || { status: null, payment: 0 };
-    setDailyRecords(prev => ({
-      ...prev,
-      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, worksite: val, worksiteSet: true } },
     }));
   };
 
@@ -1452,7 +1426,6 @@ function AdminDashboard({
                     <th>S.No</th>
                     <th>Employee Name</th>
                     <th>Present / Absent</th>
-                    <th>Worksite</th>
                     <th>Work Time</th>
                     <th>Salary (₹)</th>
                   </tr>
@@ -1461,10 +1434,6 @@ function AdminDashboard({
                   {staff.map((emp, index) => {
                     const record      = currentDayData[emp.id] || { status: null, payment: 0 };
                     const status      = record.status;
-                    const worksiteVal = record.worksiteSet
-                      ? record.worksite
-                      : getInheritedWorksite(emp.id);
-                    const isInherited        = !record.worksiteSet && worksiteVal !== '';
                     const isPaymentDisabled  = status !== 'present';
                     const displayPayment     = isPaymentDisabled ? 0 : record.payment;
                     const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
@@ -1497,19 +1466,6 @@ function AdminDashboard({
                              : status === 'absent'  ? '● ABSENT'
                              : '○ MARK'}
                           </button>
-                        </td>
-                        <td>
-                          <div className="worksite-cell">
-                            <input
-                              className={`worksite-inp${isInherited ? ' worksite-inherited' : ''}`}
-                              type="text"
-                              placeholder="e.g. Site A, Delhi"
-                              value={worksiteVal}
-                              title={isInherited ? 'Carried over from a previous date — type to change from this date onward' : ''}
-                              onChange={e => setWorksite(emp.id, e.target.value)}
-                            />
-                            {isInherited && <span className="worksite-badge">carried</span>}
-                          </div>
                         </td>
                         <td>
                           {status === 'present' ? (() => {
@@ -1574,7 +1530,7 @@ function AdminDashboard({
                 </tbody>
                 <tfoot>
                   <tr className="tfoot-row">
-                    <td colSpan={5} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
+                    <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
                       DAILY TOTAL
                     </td>
                     <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>
@@ -1788,7 +1744,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
     return {
       date: dayNum, dayName: DAY_NAMES[d.getDay()],
       status: record?.status ?? null, payment,
-      worksite: record?.worksite || '', otHours, otPay,
+      otHours, otPay,
       totalDaily: payment + otPay,
     };
   });
@@ -1847,7 +1803,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
             <thead>
               <tr>
                 <th>Date</th><th>Day</th><th>Attendance Status</th>
-                <th>Worksite</th><th>Base Pay (₹)</th><th>Total Daily (₹)</th>
+                <th>Base Pay (₹)</th><th>Total Daily (₹)</th>
               </tr>
             </thead>
             <tbody>
@@ -1860,7 +1816,6 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
                      : r.status === 'absent' ? <span className="badge-off att-absent">● ABSENT</span>
                      : <span className="badge-off att-pending">○ NOT MARKED</span>}
                   </td>
-                  <td>{r.worksite ? <span className="worksite-label">{r.worksite}</span> : <span className="td-dash">—</span>}</td>
                   <td>
                     <div className="pay-cell">
                       <span className="rupee">₹</span>
@@ -1880,7 +1835,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
             </tbody>
             <tfoot>
               <tr className="tfoot-row">
-                <td colSpan={4} className="tfoot-lbl">MONTHLY TOTAL</td>
+                <td colSpan={3} className="tfoot-lbl">MONTHLY TOTAL</td>
                 <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
                 <td className="tfoot-amt">₹{totalAllPay.toLocaleString('en-IN')}</td>
               </tr>
@@ -1917,7 +1872,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
       dayName:    DAY_NAMES[d.getDay()],
       status:     record?.status ?? null,
       payment,
-      worksite:   record?.worksite || '',
       otHours,
       otPay,
       totalDaily: payment + otPay,
@@ -2029,7 +1983,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
               <th>Date</th>
               <th>Day</th>
               <th>Attendance Status</th>
-              <th>Worksite</th>
               <th>Base Pay (₹)</th>
               <th>Total Daily (₹)</th>
             </tr>
@@ -2046,13 +1999,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
                     <span className="badge-off att-absent">● ABSENT</span>
                   ) : (
                     <span className="badge-off att-pending">○ NOT MARKED</span>
-                  )}
-                </td>
-                <td>
-                  {r.worksite ? (
-                    <span className="worksite-label">{r.worksite}</span>
-                  ) : (
-                    <span className="td-dash">—</span>
                   )}
                 </td>
                 <td>
@@ -2076,7 +2022,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
           </tbody>
           <tfoot>
             <tr className="tfoot-row">
-              <td colSpan={4} className="tfoot-lbl">MONTHLY TOTAL</td>
+              <td colSpan={3} className="tfoot-lbl">MONTHLY TOTAL</td>
               <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
               <td className="tfoot-amt">₹{totalAllPay.toLocaleString('en-IN')}</td>
             </tr>
