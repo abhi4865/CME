@@ -119,9 +119,19 @@ body {
 }
 
 .brand-bolt {
-  font-size: 2.6rem;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   filter: drop-shadow(0 0 14px rgba(245,166,35,0.65));
+}
+
+.brand-logo-img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  filter: invert(1) sepia(1) saturate(6) hue-rotate(5deg);
+  mix-blend-mode: screen;
 }
 
 .brand-info {
