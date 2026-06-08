@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 // ─── EMPLOYEE DATA ──────────────────────────────────────────────
-// Moved to INITIAL_EMPLOYEES so App can manage it as state (enables CRUD)
 const INITIAL_EMPLOYEES = [
   { id: 1, loginId: 'EMP001', password: 'pass001', name: 'Rajesh Kumar',   role: 'Senior Electrician', email: 'rajesh@cme.com',  department: 'Field Operations' },
   { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor',    email: 'priya@cme.com',   department: 'Site Management'  },
@@ -16,6 +15,63 @@ const MONTH_NAMES = [
   'July','August','September','October','November','December',
 ];
 const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// ─── CHARACTER PROFILE CONFIG ────────────────────────────────────
+const CHARACTER_GROUPS = [
+  {
+    group : 'Work Performance',
+    icon  : '📊',
+    color : '#00BFFF',
+    fields: [
+      { key: 'workQuality',    label: 'Work Quality',     desc: 'Quality of output & attention to detail'     },
+      { key: 'punctuality',    label: 'Punctuality',       desc: 'Timeliness and adherence to schedule'        },
+      { key: 'taskCompletion', label: 'Task Completion',   desc: 'Ability to complete assigned tasks on time'  },
+      { key: 'initiative',     label: 'Initiative',        desc: 'Proactiveness and self-motivation on the job'},
+    ],
+  },
+  {
+    group : 'Work Behaviour',
+    icon  : '🔧',
+    color : '#F5A623',
+    fields: [
+      { key: 'discipline',      label: 'Discipline & Conduct',    desc: 'Adherence to site rules and orderly conduct'   },
+      { key: 'professionalism', label: 'Professionalism',          desc: 'Professional demeanor and strong work ethics'  },
+      { key: 'teamwork',        label: 'Teamwork & Collaboration', desc: 'Working cooperatively with colleagues'         },
+      { key: 'communication',   label: 'Communication Skills',     desc: 'Clear, respectful and effective communication' },
+    ],
+  },
+  {
+    group : 'Good Qualities',
+    icon  : '✅',
+    color : '#00E676',
+    fields: [
+      { key: 'positiveAttitude', label: 'Positive Attitude',   desc: 'Optimism, enthusiasm and constructive mindset'      },
+      { key: 'reliability',      label: 'Reliability & Trust', desc: 'Dependability, honesty and trustworthiness'         },
+      { key: 'adaptability',     label: 'Adaptability',        desc: 'Handles change and new challenges effectively'      },
+      { key: 'workHabits',       label: 'Work Habits',         desc: 'Overall good habits and personal responsibility'    },
+    ],
+  },
+  {
+    group : 'Concerns & Bad Tendencies',
+    icon  : '⚠',
+    color : '#FF1744',
+    fields: [
+      { key: 'misconduct',   label: 'Misconduct Level',   desc: '1 = Critical issues observed  ·  5 = None'       },
+      { key: 'attitudeRisk', label: 'Attitude Issues',    desc: '1 = Frequent incidents  ·  5 = None observed'    },
+      { key: 'absenteeism',  label: 'Absenteeism Risk',   desc: '1 = High risk  ·  5 = Very reliable attendee'    },
+      { key: 'conflictRisk', label: 'Conflict Tendency',  desc: '1 = High tendency  ·  5 = No issues at all'     },
+    ],
+  },
+];
+
+const EMPTY_CHARACTER = {
+  workQuality: 0, punctuality: 0, taskCompletion: 0, initiative: 0,
+  discipline: 0, professionalism: 0, teamwork: 0, communication: 0,
+  positiveAttitude: 0, reliability: 0, adaptability: 0, workHabits: 0,
+  misconduct: 0, attitudeRisk: 0, absenteeism: 0, conflictRisk: 0,
+  notes: '',
+  lastUpdated: null,
+};
 
 // ─── HELPERS ────────────────────────────────────────────────────
 function buildMonthRecords(year, month) {
@@ -148,19 +204,217 @@ function StatCard({ label, value, accentColor }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  STAR RATING  —  interactive 5-star widget (admin-only)
+// ═══════════════════════════════════════════════════════════════
+function StarRating({ value, onChange, color = 'var(--amber)' }) {
+  const [hovered, setHovered] = useState(0);
+  const filled = hovered || value;
+
+  const labels = ['', 'Poor', 'Below Average', 'Average', 'Good', 'Excellent'];
+
+  return (
+    <div className="star-rating" title={value > 0 ? `${value}/5 — ${labels[value]}` : 'Not rated'}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          type="button"
+          className={`star-btn ${n <= filled ? 'star-lit' : 'star-dim'}`}
+          style={n <= filled ? { color, filter: `drop-shadow(0 0 4px ${color}88)` } : {}}
+          onClick={() => onChange(n === value ? 0 : n)}
+          onMouseEnter={() => setHovered(n)}
+          onMouseLeave={() => setHovered(0)}
+          aria-label={`${n} star`}
+        >
+          ★
+        </button>
+      ))}
+      <span className="star-label">
+        {hovered > 0 ? labels[hovered] : (value > 0 ? `${value}/5` : '—')}
+      </span>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  CHARACTER PROFILE SECTION  —  Admin-only, never shown to employees
+// ═══════════════════════════════════════════════════════════════
+function CharacterProfileSection({ employee, characterProfiles, setCharacterProfiles }) {
+  const getSaved = id => ({ ...EMPTY_CHARACTER, ...(characterProfiles[id] || {}) });
+
+  const [draft, setDraft] = useState(() => getSaved(employee.id));
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Reset whenever we switch to a different employee
+  useEffect(() => {
+    setDraft(getSaved(employee.id));
+    setDirty(false);
+    setSaved(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee.id]);
+
+  const setRating = (key, val) => {
+    setDirty(true);
+    setSaved(false);
+    setDraft(prev => ({ ...prev, [key]: val }));
+  };
+
+  const setNotes = val => {
+    setDirty(true);
+    setSaved(false);
+    setDraft(prev => ({ ...prev, notes: val }));
+  };
+
+  const handleSave = () => {
+    const ts = new Date().toISOString();
+    setCharacterProfiles(prev => ({
+      ...prev,
+      [employee.id]: { ...draft, lastUpdated: ts },
+    }));
+    setDraft(prev => ({ ...prev, lastUpdated: ts }));
+    setDirty(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2800);
+  };
+
+  // ── Computed scores ──
+  const groupAvg = fields => {
+    const rated = fields.filter(f => draft[f.key] > 0);
+    if (!rated.length) return null;
+    return (rated.reduce((s, f) => s + draft[f.key], 0) / rated.length).toFixed(1);
+  };
+
+  const allKeys = CHARACTER_GROUPS.flatMap(g => g.fields.map(f => f.key));
+  const ratedAll = allKeys.filter(k => draft[k] > 0);
+  const overallScore = ratedAll.length > 0
+    ? (ratedAll.reduce((s, k) => s + draft[k], 0) / ratedAll.length).toFixed(1)
+    : null;
+
+  const lastUpdatedStr = draft.lastUpdated
+    ? new Date(draft.lastUpdated).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+    : null;
+
+  // Ratingbelt colour based on score
+  const scoreColor = s => {
+    if (!s) return 'var(--text-sub)';
+    const n = parseFloat(s);
+    if (n >= 4.5) return '#00E676';
+    if (n >= 3.5) return '#F5A623';
+    if (n >= 2.5) return '#29B6F6';
+    return '#FF1744';
+  };
+
+  return (
+    <div className="char-section">
+
+      {/* ── Admin-only banner ── */}
+      <div className="char-banner">
+        <div className="char-banner-left">
+          <span className="char-lock-icon">🔒</span>
+          <div>
+            <div className="char-banner-title">Character Profile</div>
+            <div className="char-banner-sub">ADMIN CONFIDENTIAL · NOT VISIBLE TO EMPLOYEE</div>
+          </div>
+        </div>
+
+        <div className="char-banner-right">
+          {overallScore && (
+            <div className="char-overall" style={{ '--score-color': scoreColor(overallScore) }}>
+              <span className="char-overall-num">{overallScore}</span>
+              <span className="char-overall-star">★</span>
+              <span className="char-overall-lbl">OVERALL</span>
+            </div>
+          )}
+          {lastUpdatedStr && (
+            <div className="char-timestamp">Updated: {lastUpdatedStr}</div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Rating Groups ── */}
+      <div className="char-groups">
+        {CHARACTER_GROUPS.map(grp => {
+          const avg = groupAvg(grp.fields);
+          return (
+            <div
+              key={grp.group}
+              className="char-group"
+              style={{ '--grp-color': grp.color }}
+            >
+              <div className="char-group-hdr">
+                <span className="char-group-icon">{grp.icon}</span>
+                <span className="char-group-name">{grp.group}</span>
+                {avg && (
+                  <span className="char-group-avg" style={{ color: grp.color }}>
+                    {avg} ★
+                  </span>
+                )}
+              </div>
+
+              <div className="char-fields">
+                {grp.fields.map(field => (
+                  <div key={field.key} className="char-field">
+                    <div className="char-field-info">
+                      <span className="char-field-label">{field.label}</span>
+                      <span className="char-field-desc">{field.desc}</span>
+                    </div>
+                    <StarRating
+                      value={draft[field.key]}
+                      onChange={val => setRating(field.key, val)}
+                      color={grp.color}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Notes ── */}
+      <div className="char-notes-wrap">
+        <label className="char-notes-lbl">📝 Admin Notes &amp; Observations</label>
+        <textarea
+          className="char-notes-inp"
+          placeholder="Add private notes about this employee — character observations, commendations, incidents, improvement areas, or any relevant remarks visible only to the admin..."
+          value={draft.notes}
+          onChange={e => setNotes(e.target.value)}
+          rows={4}
+        />
+      </div>
+
+      {/* ── Save Row ── */}
+      <div className="char-actions">
+        {saved && (
+          <span className="char-saved-msg">✓ Character profile saved successfully</span>
+        )}
+        {dirty && !saved && (
+          <span className="char-unsaved-msg">● Unsaved changes</span>
+        )}
+        <button
+          className={`char-save-btn ${dirty ? 'char-save-pulse' : ''}`}
+          onClick={handleSave}
+          disabled={!dirty && !saved}
+        >
+          {saved ? '✓ Saved' : '💾 Save Character Profile'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE MANAGER  –  Admin-only CRUD panel
-//  Features: View all · Create · Edit · Delete (with confirmation)
 // ═══════════════════════════════════════════════════════════════
 function EmployeeManager({ employees, setEmployees }) {
   const BLANK = { name: '', email: '', password: '', loginId: '', department: '', role: '' };
 
-  const [view,          setView]         = useState('list');   // 'list' | 'create' | 'edit'
-  const [editTarget,    setEditTarget]   = useState(null);
-  const [deleteTarget,  setDeleteTarget] = useState(null);
-  const [form,          setForm]         = useState(BLANK);
-  const [formErr,       setFormErr]      = useState('');
+  const [view,         setView]        = useState('list');
+  const [editTarget,   setEditTarget]  = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [form,         setForm]        = useState(BLANK);
+  const [formErr,      setFormErr]     = useState('');
 
-  // ── Open helpers ──────────────────────────────────────────────
   const openCreate = () => {
     setForm({ ...BLANK, role: 'Electrician' });
     setFormErr('');
@@ -186,7 +440,6 @@ function EmployeeManager({ employees, setEmployees }) {
   const handleFieldChange = (field, val) =>
     setForm(prev => ({ ...prev, [field]: val }));
 
-  // ── Validation ────────────────────────────────────────────────
   const validate = () => {
     if (!form.name.trim())     return 'Full name is required.';
     if (!form.loginId.trim())  return 'Employee ID is required.';
@@ -199,7 +452,6 @@ function EmployeeManager({ employees, setEmployees }) {
     return null;
   };
 
-  // ── Create ────────────────────────────────────────────────────
   const handleCreate = () => {
     const err = validate();
     if (err) { setFormErr(err); return; }
@@ -215,7 +467,6 @@ function EmployeeManager({ employees, setEmployees }) {
     setView('list');
   };
 
-  // ── Save Edit ─────────────────────────────────────────────────
   const handleSaveEdit = () => {
     const err = validate();
     if (err) { setFormErr(err); return; }
@@ -234,18 +485,14 @@ function EmployeeManager({ employees, setEmployees }) {
     setEditTarget(null);
   };
 
-  // ── Delete ────────────────────────────────────────────────────
   const doDelete = () => {
     setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
     setDeleteTarget(null);
   };
 
-  // Non-admin staff only
   const staff = employees.filter(e => e.role !== 'Administrator');
 
-  // ════════════════════════════════════════════════════════════
-  //  FORM VIEW  (shared for Create and Edit)
-  // ════════════════════════════════════════════════════════════
+  // ── Form View ──────────────────────────────────────────────────
   if (view === 'create' || view === 'edit') {
     const isEdit = view === 'edit';
     return (
@@ -350,13 +597,10 @@ function EmployeeManager({ employees, setEmployees }) {
     );
   }
 
-  // ════════════════════════════════════════════════════════════
-  //  LIST VIEW
-  // ════════════════════════════════════════════════════════════
+  // ── List View ──────────────────────────────────────────────────
   return (
     <div className="emp-mgr">
 
-      {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
         <div className="modal-overlay">
           <div className="confirm-modal">
@@ -379,7 +623,6 @@ function EmployeeManager({ employees, setEmployees }) {
         </div>
       )}
 
-      {/* ── Panel Header ── */}
       <div className="emp-mgr-header">
         <div>
           <h2 className="emp-mgr-title">Employee Directory</h2>
@@ -392,7 +635,6 @@ function EmployeeManager({ employees, setEmployees }) {
         </button>
       </div>
 
-      {/* ── Directory Table ── */}
       <div className="tbl-wrap">
         <table className="att-tbl emp-tbl">
           <thead>
@@ -459,9 +701,12 @@ function EmployeeManager({ employees, setEmployees }) {
 
 // ═══════════════════════════════════════════════════════════════
 //  ADMIN EMPLOYEE PROFILE
-//  Calculates monthly totals from the shared dailyRecords state
+//  Monthly overview + Character Profile section (admin-only)
 // ═══════════════════════════════════════════════════════════════
-function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
+function AdminEmployeeProfile({
+  employee, month, year, dailyRecords, onBack,
+  characterProfiles, setCharacterProfiles,
+}) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   let presentDays      = 0;
@@ -506,6 +751,15 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
           <div className="profile-id">ID: {employee.loginId}</div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          CHARACTER PROFILE  —  Admin-only, never shown to employee
+          ══════════════════════════════════════════════════════════ */}
+      <CharacterProfileSection
+        employee={employee}
+        characterProfiles={characterProfiles}
+        setCharacterProfiles={setCharacterProfiles}
+      />
     </>
   );
 }
@@ -513,29 +767,31 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
 // ═══════════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD  –  Daily roster + Employee Management tabs
 // ═══════════════════════════════════════════════════════════════
-function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, employees, setEmployees }) {
+function AdminDashboard({
+  employee, onLogout,
+  dailyRecords, setDailyRecords,
+  employees, setEmployees,
+  characterProfiles, setCharacterProfiles,
+}) {
   const now  = new Date();
-  const [year,         setYear]         = useState(now.getFullYear());
-  const [month,        setMonth]        = useState(now.getMonth());
-  const [day,          setDay]          = useState(now.getDate());
+  const [year,          setYear]         = useState(now.getFullYear());
+  const [month,         setMonth]        = useState(now.getMonth());
+  const [day,           setDay]          = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
-  // ── New: tab navigation (admin-only, completely hidden from employees) ──
-  const [activeTab,    setActiveTab]    = useState('attendance'); // 'attendance' | 'employees'
+  const [activeTab,     setActiveTab]    = useState('attendance');
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  // Clamp day when switching to a shorter month
   useEffect(() => {
     if (day > daysInMonth) setDay(daysInMonth);
   }, [month, daysInMonth, day]);
 
   const dateKey        = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  // Use employees prop (state) instead of the old EMPLOYEES constant
   const staff          = employees.filter(e => e.role !== 'Administrator');
   const currentDayData = dailyRecords[dateKey] || {};
 
   // ── Inherited worksite ──────────────────────────────────────────
-  const getInheritedWorksite = (empId) => {
+  const getInheritedWorksite = empId => {
     for (let d = day; d >= 1; d--) {
       const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const rec = dailyRecords[k]?.[empId];
@@ -553,7 +809,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
   };
 
   // ── Inherited salary ────────────────────────────────────────────
-  const getInheritedSalary = (empId) => {
+  const getInheritedSalary = empId => {
     for (let d = day - 1; d >= 1; d--) {
       const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const rec = dailyRecords[k]?.[empId];
@@ -583,12 +839,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
       ...prev,
       [dateKey]: {
         ...prev[dateKey],
-        [empId]: {
-          ...empData,
-          status:     next,
-          payment:    newPayment,
-          paymentSet: false,
-        },
+        [empId]: { ...empData, status: next, payment: newPayment, paymentSet: false },
       },
     }));
   };
@@ -599,11 +850,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
       ...prev,
       [dateKey]: {
         ...prev[dateKey],
-        [empId]: {
-          ...empData,
-          payment:    Math.max(0, parseInt(val) || 0),
-          paymentSet: true,
-        },
+        [empId]: { ...empData, payment: Math.max(0, parseInt(val) || 0), paymentSet: true },
       },
     }));
   };
@@ -616,7 +863,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
     }));
   };
 
-  // ── Daily Totals for Stats Strip ──
+  // ── Daily totals ──
   let presentCount      = 0;
   let absentCount       = 0;
   let totalDailyPayment = 0;
@@ -654,7 +901,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
         </div>
       </header>
 
-      {/* ── ADMIN NAVIGATION TABS (visible to Administrator only) ── */}
+      {/* ── ADMIN NAVIGATION TABS ── */}
       <div className="admin-nav">
         <button
           className={`admin-nav-tab ${activeTab === 'attendance' ? 'admin-nav-tab-on' : ''}`}
@@ -671,7 +918,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          TAB: DAILY ATTENDANCE  (existing functionality, unchanged)
+          TAB: DAILY ATTENDANCE
           ══════════════════════════════════════════════════════════ */}
       {activeTab === 'attendance' && (
         selectedEmployee ? (
@@ -681,6 +928,8 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
             year={year}
             dailyRecords={dailyRecords}
             onBack={() => setSelectedEmpId(null)}
+            characterProfiles={characterProfiles}
+            setCharacterProfiles={setCharacterProfiles}
           />
         ) : (
           <>
@@ -755,8 +1004,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
                     const worksiteVal = record.worksiteSet
                       ? record.worksite
                       : getInheritedWorksite(emp.id);
-                    const isInherited = !record.worksiteSet && worksiteVal !== '';
-
+                    const isInherited        = !record.worksiteSet && worksiteVal !== '';
                     const isPaymentDisabled  = status !== 'present';
                     const displayPayment     = isPaymentDisabled ? 0 : record.payment;
                     const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
@@ -843,7 +1091,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          TAB: MANAGE EMPLOYEES  (new — admin-only CRUD panel)
+          TAB: MANAGE EMPLOYEES
           ══════════════════════════════════════════════════════════ */}
       {activeTab === 'employees' && (
         <EmployeeManager employees={employees} setEmployees={setEmployees} />
@@ -855,6 +1103,7 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, emp
 
 // ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE DASHBOARD  –  Personal monthly view (read-only)
+//  Character profile is intentionally absent from this view.
 // ═══════════════════════════════════════════════════════════════
 function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
   const now = new Date();
@@ -875,8 +1124,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
       worksite: record?.worksite || '',
     };
   });
-
-  const changeMonth = m => setMonth(m);
 
   let runningTotal = 0;
   const enriched = rows.map(r => {
@@ -929,7 +1176,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
             <button
               key={i}
               className={`mtab ${month === i ? 'mtab-on' : ''}`}
-              onClick={() => changeMonth(i)}
+              onClick={() => setMonth(i)}
             >
               {m.slice(0, 3)}
             </button>
@@ -1002,14 +1249,14 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
 //  ROOT APP
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  // employees is now state so the admin can create / edit / delete
-  const [employees,    setEmployees]    = useState(INITIAL_EMPLOYEES);
-  const [user,         setUser]         = useState(null);
-  const [err,          setErr]          = useState('');
-  const [dailyRecords, setDailyRecords] = useState({});
+  const [employees,         setEmployees]         = useState(INITIAL_EMPLOYEES);
+  const [user,              setUser]              = useState(null);
+  const [err,               setErr]               = useState('');
+  const [dailyRecords,      setDailyRecords]      = useState({});
+  // Character profiles — keyed by employee ID, admin-only, never exposed to EmployeeDashboard
+  const [characterProfiles, setCharacterProfiles] = useState({});
 
   const handleLogin = (id, pwd) => {
-    // Always check the live employees state (picks up newly created accounts)
     const emp = employees.find(e =>
       e.loginId.toLowerCase() === id.toLowerCase() && e.password === pwd
     );
@@ -1023,7 +1270,6 @@ function App() {
     <div className="App">
       {!user && <LoginPage onLogin={handleLogin} error={err} />}
 
-      {/* Administrator sees the full dashboard including Manage Employees tab */}
       {user && user.role === 'Administrator' && (
         <AdminDashboard
           employee={user}
@@ -1032,10 +1278,12 @@ function App() {
           setDailyRecords={setDailyRecords}
           employees={employees}
           setEmployees={setEmployees}
+          characterProfiles={characterProfiles}
+          setCharacterProfiles={setCharacterProfiles}
         />
       )}
 
-      {/* Regular employees only see their own read-only attendance view */}
+      {/* Character profile is intentionally NOT passed here */}
       {user && user.role !== 'Administrator' && (
         <EmployeeDashboard
           employee={user}

@@ -640,7 +640,7 @@ body {
   font-weight: 700;
   font-family: var(--mono);
   cursor: pointer;
-  width: 136px;          /* fixed — all states identical size */
+  width: 136px;
   text-align: center;
   letter-spacing: 1.8px;
   text-transform: uppercase;
@@ -652,11 +652,9 @@ body {
   user-select: none;
 }
 
-/* hover: just a gentle brightness lift — no colour or size change */
 .att-btn:hover  { filter: brightness(1.15); }
 .att-btn:active { transform: scale(0.95); filter: brightness(0.9); }
 
-/* ── PRESENT ── vivid green */
 .att-present {
   background: rgba(0, 230, 118, 0.25);
   border: 1.5px solid #00E676;
@@ -665,7 +663,6 @@ body {
   text-shadow: 0 0 8px rgba(0, 230, 118, 0.8);
 }
 
-/* ── ABSENT ── sharp red */
 .att-absent {
   background: rgba(255, 23, 68, 0.25);
   border: 1.5px solid #FF1744;
@@ -674,7 +671,6 @@ body {
   text-shadow: 0 0 8px rgba(255, 23, 68, 0.8);
 }
 
-/* ── MARK (unset) ── muted steel */
 .att-mark {
   background: rgba(15, 18, 28, 0.80);
   border: 1.5px dashed rgba(75, 84, 115, 0.55);
@@ -682,7 +678,6 @@ body {
   box-shadow: 0 2px 7px rgba(0,0,0,0.28);
 }
 
-/* ── Employee view: day not yet marked by admin ── */
 .att-pending {
   background: rgba(15, 18, 28, 0.70) !important;
   border: 1.5px dashed rgba(55, 62, 92, 0.55) !important;
@@ -693,7 +688,6 @@ body {
   font-weight: 600 !important;
 }
 
-/* ── Employee view: pill-shaped read-only status badges ─────── */
 .badge-off.att-present,
 .badge-off.att-absent,
 .badge-off.att-pending {
@@ -711,7 +705,6 @@ body {
   padding: 0.42rem 0;
 }
 
-/* These specific rules block the .badge-off amber bleed */
 .badge-off.att-present {
   background: rgba(0, 230, 118, 0.25);
   border: 1.5px solid #00E676;
@@ -728,7 +721,6 @@ body {
   text-shadow: 0 0 8px rgba(255, 23, 68, 0.8);
 }
 
-/* Read-only worksite text in employee view */
 .worksite-label {
   font-size: 0.82rem;
   font-family: var(--sans);
@@ -783,7 +775,6 @@ body {
   box-shadow: 0 0 0 2px var(--amber-glow);
 }
 
-/* Disabled state — MARK or ABSENT: dim the field, no interaction */
 .pay-inp:disabled {
   opacity: 0.30;
   cursor: not-allowed;
@@ -791,7 +782,6 @@ body {
   color: var(--text-dim);
 }
 
-/* Inherited / auto-filled salary state — dashed amber border like worksite "carried" */
 .pay-inp.pay-inherited {
   border-style: dashed;
   border-color: rgba(245,166,35,0.38);
@@ -809,7 +799,6 @@ body {
 .pay-inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .pay-inp[type=number] { appearance: textfield; -moz-appearance: textfield; }
 
-/* Worksite text input */
 .worksite-cell {
   display: flex;
   align-items: center;
@@ -839,7 +828,6 @@ body {
   box-shadow: 0 0 0 2px var(--amber-glow);
 }
 
-/* Inherited / carried-over state — subtle amber dashed border */
 .worksite-inp.worksite-inherited {
   border-style: dashed;
   border-color: rgba(245,166,35,0.35);
@@ -853,7 +841,6 @@ body {
   box-shadow: 0 0 0 2px var(--amber-glow);
 }
 
-/* Small "carried" pill badge shown next to inherited inputs */
 .worksite-badge {
   font-size: 0.6rem;
   font-family: var(--mono);
@@ -917,7 +904,7 @@ body {
   border: 1px solid var(--border2);
   border-radius: 12px;
   padding: 2rem 2.4rem;
-  margin: 2rem;
+  margin: 2rem 2rem 0;
   max-width: 620px;
   display: flex;
   align-items: center;
@@ -974,7 +961,6 @@ body {
 
 /* ════════════════════════════════════════════════════════════════
    ADMIN NAVIGATION TABS
-   Only rendered inside AdminDashboard — never visible to employees
    ════════════════════════════════════════════════════════════════ */
 
 .admin-nav {
@@ -984,7 +970,7 @@ body {
   display: flex;
   gap: 0;
   position: sticky;
-  top: 62px;          /* sit just below the sticky dash-header */
+  top: 62px;
   z-index: 40;
 }
 
@@ -1001,7 +987,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   transition: color 0.2s, border-color 0.2s;
-  margin-bottom: -2px;   /* overlap the border-bottom of .admin-nav */
+  margin-bottom: -2px;
   white-space: nowrap;
 }
 
@@ -1016,14 +1002,12 @@ body {
    EMPLOYEE MANAGER  (Create · View · Edit · Delete)
    ════════════════════════════════════════════════════════════════ */
 
-/* ── Panel container ── */
 .emp-mgr {
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* ── Panel header row ── */
 .emp-mgr-header {
   display: flex;
   align-items: center;
@@ -1049,7 +1033,6 @@ body {
   letter-spacing: 0.8px;
 }
 
-/* ── "＋ Add Employee" button ── */
 .emp-btn-add {
   background: linear-gradient(135deg, var(--amber) 0%, #E8850A 100%);
   border: none;
@@ -1072,7 +1055,6 @@ body {
 
 .emp-btn-add:active { transform: translateY(0); }
 
-/* ── Directory table extras ── */
 .emp-tbl { min-width: 680px; }
 
 .emp-tbl-muted {
@@ -1088,7 +1070,6 @@ body {
   font-style: italic;
 }
 
-/* Employee ID mono badge in the table */
 .emp-id-badge {
   font-family: var(--mono);
   font-size: 0.8rem;
@@ -1100,7 +1081,6 @@ body {
   letter-spacing: 1.5px;
 }
 
-/* ── Edit / Delete action buttons ── */
 .action-btns {
   display: flex;
   gap: 0.5rem;
@@ -1146,7 +1126,7 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   EMPLOYEE FORM  (Create & Edit — shared layout)
+   EMPLOYEE FORM  (Create & Edit)
    ════════════════════════════════════════════════════════════════ */
 
 .emp-form-wrap {
@@ -1154,9 +1134,7 @@ body {
   max-width: 900px;
 }
 
-.emp-form-header {
-  margin-bottom: 1.8rem;
-}
+.emp-form-header { margin-bottom: 1.8rem; }
 
 .emp-back-btn {
   margin-bottom: 1.2rem !important;
@@ -1177,7 +1155,6 @@ body {
   line-height: 1.5;
 }
 
-/* Card wrapping the form fields */
 .emp-form {
   background: var(--surf);
   border: 1px solid var(--border2);
@@ -1186,7 +1163,6 @@ body {
   position: relative;
 }
 
-/* Amber top accent line */
 .emp-form::before {
   content: '';
   position: absolute;
@@ -1196,7 +1172,6 @@ body {
   border-radius: 14px 14px 0 0;
 }
 
-/* 2-column grid of field-groups */
 .emp-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1204,13 +1179,11 @@ body {
   margin-bottom: 0.5rem;
 }
 
-/* Error banner inside the form */
 .emp-form-err {
   margin-top: 0.8rem;
   margin-bottom: 0;
 }
 
-/* Bottom action row */
 .emp-form-actions {
   display: flex;
   gap: 1rem;
@@ -1221,13 +1194,11 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* Override login-btn margin when used inside the form */
 .emp-form-submit {
   margin-top: 0 !important;
   min-width: 190px;
 }
 
-/* Cancel / secondary button */
 .emp-btn-cancel {
   background: transparent;
   border: 1px solid var(--border2);
@@ -1279,7 +1250,6 @@ body {
   animation: fadeIn 0.2s ease;
 }
 
-/* Red top accent line */
 .confirm-modal::before {
   content: '';
   position: absolute;
@@ -1323,7 +1293,6 @@ body {
   justify-content: center;
 }
 
-/* Red destructive confirm button */
 .emp-btn-delete-confirm {
   background: var(--red);
   border: none;
@@ -1346,12 +1315,381 @@ body {
 .emp-btn-delete-confirm:active { transform: translateY(0); }
 
 /* ════════════════════════════════════════════════════════════════
+   CHARACTER PROFILE SECTION  —  Admin-only, never shown to employees
+   ════════════════════════════════════════════════════════════════ */
+
+.char-section {
+  margin: 1.8rem 2rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+/* ── Admin confidential banner ── */
+.char-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  background: rgba(255, 23, 68, 0.05);
+  border: 1px solid rgba(255, 23, 68, 0.18);
+  border-radius: 12px;
+  padding: 1.2rem 1.6rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.char-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #FF1744 30%, transparent);
+}
+
+.char-banner::after {
+  content: 'CONFIDENTIAL';
+  position: absolute;
+  right: -22px;
+  top: 12px;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 4px;
+  color: rgba(255,23,68,0.12);
+  transform: rotate(90deg);
+  user-select: none;
+  pointer-events: none;
+}
+
+.char-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.char-lock-icon {
+  font-size: 1.8rem;
+  filter: drop-shadow(0 0 8px rgba(255,23,68,0.5));
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.char-banner-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.char-banner-sub {
+  font-size: 0.65rem;
+  color: var(--red);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 3px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.char-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  flex-wrap: wrap;
+}
+
+/* Overall score badge */
+.char-overall {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 0.45rem 0.9rem;
+}
+
+.char-overall-num {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  color: var(--score-color, var(--amber));
+  line-height: 1;
+  text-shadow: 0 0 16px var(--score-color, var(--amber));
+}
+
+.char-overall-star {
+  font-size: 1rem;
+  color: var(--score-color, var(--amber));
+  filter: drop-shadow(0 0 4px var(--score-color, var(--amber)));
+}
+
+.char-overall-lbl {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-sub);
+  margin-left: 2px;
+}
+
+.char-timestamp {
+  font-size: 0.7rem;
+  font-family: var(--mono);
+  color: var(--text-sub);
+  letter-spacing: 0.3px;
+}
+
+/* ── Character Groups Grid ── */
+.char-groups {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.char-group {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.2s;
+}
+
+.char-group::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--grp-color, var(--amber)) 40%, transparent);
+}
+
+.char-group:hover {
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* Group header row */
+.char-group-hdr {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1.2rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.char-group-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.char-group-name {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text);
+  flex: 1;
+}
+
+.char-group-avg {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ── Individual rating rows ── */
+.char-fields {
+  padding: 0.3rem 0;
+}
+
+.char-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 1.2rem;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  gap: 0.8rem;
+  transition: background 0.12s;
+}
+
+.char-field:last-child { border-bottom: none; }
+.char-field:hover { background: rgba(255,255,255,0.018); }
+
+.char-field-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.char-field-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.char-field-desc {
+  font-size: 0.64rem;
+  color: var(--text-sub);
+  line-height: 1.35;
+}
+
+/* ── Star Rating Widget ── */
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 2px 1px;
+  transition: transform 0.1s;
+  user-select: none;
+}
+
+.star-btn:hover { transform: scale(1.25); }
+.star-btn:active { transform: scale(0.95); }
+
+.star-btn.star-dim {
+  color: var(--border2);
+  filter: none !important;
+}
+
+.star-label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--text-sub);
+  margin-left: 5px;
+  min-width: 70px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* ── Notes Area ── */
+.char-notes-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.char-notes-lbl {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--amber);
+}
+
+.char-notes-inp {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: var(--sans);
+  line-height: 1.65;
+  resize: vertical;
+  outline: none;
+  min-height: 100px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.char-notes-inp::placeholder {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.char-notes-inp:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-glow);
+}
+
+/* ── Save row ── */
+.char-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.char-saved-msg {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--green);
+  letter-spacing: 0.3px;
+  animation: fadeIn 0.25s ease;
+}
+
+.char-unsaved-msg {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--amber);
+  opacity: 0.75;
+  letter-spacing: 0.3px;
+}
+
+.char-save-btn {
+  background: linear-gradient(135deg, var(--amber) 0%, #E8850A 100%);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.78rem 1.8rem;
+  color: #000;
+  font-size: 0.88rem;
+  font-weight: 800;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+
+.char-save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(245,166,35,0.38);
+}
+
+.char-save-btn:active:not(:disabled) { transform: translateY(0); }
+
+.char-save-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes pulse-amber {
+  0%,100% { box-shadow: 0 0 0 0 rgba(245,166,35,0); }
+  50%      { box-shadow: 0 0 0 6px rgba(245,166,35,0.22); }
+}
+
+.char-save-pulse {
+  animation: pulse-amber 1.8s ease infinite;
+}
+
+/* ════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1100px) {
+  .char-groups { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 900px) {
   .stats-strip { grid-template-columns: repeat(2, 1fr); }
   .month-display { display: none; }
+  .char-groups { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 700px) {
@@ -1362,12 +1700,15 @@ body {
   .month-bar    { padding: 0.7rem 1rem; gap: 0.7rem; }
   .month-bar-lbl { display: none; }
   .profile-card { margin: 1rem; }
-  /* Employee form drops to 1 column on mobile */
   .emp-form-grid  { grid-template-columns: 1fr; }
   .emp-form-wrap  { padding: 1.2rem 1rem 2rem; }
   .emp-mgr-header { padding: 1rem; }
   .admin-nav      { padding: 0 1rem; }
   .confirm-modal  { padding: 2rem 1.5rem 1.8rem; }
+  .char-section   { margin: 1rem; }
+  .char-field     { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .char-banner    { flex-direction: column; align-items: flex-start; }
+  .char-banner-right { width: 100%; }
 }
 
 @media (max-width: 500px) {
@@ -1377,4 +1718,6 @@ body {
   .emp-form-actions { flex-direction: column; }
   .emp-form-submit  { width: 100%; justify-content: center; }
   .emp-btn-cancel   { width: 100%; text-align: center; }
+  .char-actions     { flex-direction: column; align-items: stretch; }
+  .char-save-btn    { width: 100%; justify-content: center; text-align: center; }
 }
