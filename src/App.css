@@ -632,63 +632,100 @@ body {
   text-shadow: 0 0 8px rgba(245,166,35,0.4);
 }
 
-/* Attendance toggle button */
+/* ── Attendance toggle button (Admin – 3-state cycle) ─────────── */
 .att-btn {
-  border: none;
-  border-radius: 7px;
-  padding: 0.38rem 1.1rem;
-  font-size: 0.8rem;
+  border-radius: 8px;
+  padding: 0.5rem 0;
+  font-size: 0.73rem;
   font-weight: 700;
-  font-family: var(--sans);
+  font-family: var(--mono);
   cursor: pointer;
-  min-width: 110px;
+  width: 136px;          /* fixed — all states identical size */
   text-align: center;
-  transition: transform 0.12s, box-shadow 0.12s;
-  letter-spacing: 0.3px;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: filter 0.15s ease, transform 0.08s ease;
+  user-select: none;
 }
 
-.att-btn:hover { transform: scale(1.05); }
+/* hover: just a gentle brightness lift — no colour or size change */
+.att-btn:hover  { filter: brightness(1.15); }
+.att-btn:active { transform: scale(0.95); filter: brightness(0.9); }
 
+/* ── PRESENT ── vivid green */
 .att-present {
-  background: var(--green-bg);
-  border: 1px solid var(--green-bdr);
-  color: var(--green);
-}
-.att-present:hover {
-  background: rgba(0,230,118,0.18);
-  box-shadow: 0 0 12px rgba(0,230,118,0.2);
+  background: rgba(0, 230, 118, 0.25);
+  border: 1.5px solid #00E676;
+  color: #00E676;
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
+  text-shadow: 0 0 8px rgba(0, 230, 118, 0.8);
 }
 
+/* ── ABSENT ── sharp red */
 .att-absent {
-  background: var(--red-bg);
-  border: 1px solid var(--red-bdr);
-  color: var(--red);
-}
-.att-absent:hover {
-  background: rgba(255,23,68,0.18);
-  box-shadow: 0 0 12px rgba(255,23,68,0.2);
+  background: rgba(255, 23, 68, 0.25);
+  border: 1.5px solid #FF1744;
+  color: #FF1744;
+  box-shadow: 0 0 15px rgba(255, 23, 68, 0.25);
+  text-shadow: 0 0 8px rgba(255, 23, 68, 0.8);
 }
 
-/* Default unset state — neutral amber */
+/* ── MARK (unset) ── muted steel */
 .att-mark {
-  background: var(--amber-dim);
-  border: 1px dashed rgba(245,166,35,0.35);
-  color: rgba(245,166,35,0.65);
-  letter-spacing: 1px;
-}
-.att-mark:hover {
-  background: var(--amber-glow);
-  border-color: var(--amber);
-  color: var(--amber);
-  box-shadow: 0 0 10px rgba(245,166,35,0.18);
+  background: rgba(15, 18, 28, 0.80);
+  border: 1.5px dashed rgba(75, 84, 115, 0.55);
+  color: rgba(92, 100, 130, 0.70);
+  box-shadow: 0 2px 7px rgba(0,0,0,0.28);
 }
 
-/* Employee view: day not yet marked by admin */
+/* ── Employee view: day not yet marked by admin ── */
 .att-pending {
-  background: rgba(92,100,128,0.12);
-  border: 1px dashed rgba(92,100,128,0.35) !important;
-  color: var(--text-sub) !important;
-  letter-spacing: 0.5px;
+  background: rgba(15, 18, 28, 0.70) !important;
+  border: 1.5px dashed rgba(55, 62, 92, 0.55) !important;
+  color: rgba(80, 90, 120, 0.65) !important;
+  letter-spacing: 1.5px;
+  font-family: var(--mono) !important;
+  font-size: 0.70rem !important;
+  font-weight: 600 !important;
+}
+
+/* ── Employee view: pill-shaped read-only status badges ─────── */
+.badge-off.att-present,
+.badge-off.att-absent,
+.badge-off.att-pending {
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.70rem !important;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  width: 136px;
+  padding: 0.42rem 0;
+}
+
+/* These specific rules block the .badge-off amber bleed */
+.badge-off.att-present {
+  background: rgba(0, 230, 118, 0.25);
+  border: 1.5px solid #00E676;
+  color: #00E676;
+  box-shadow: 0 0 15px rgba(0, 230, 118, 0.25);
+  text-shadow: 0 0 8px rgba(0, 230, 118, 0.8);
+}
+
+.badge-off.att-absent {
+  background: rgba(255, 23, 68, 0.25);
+  border: 1.5px solid #FF1744;
+  color: #FF1744;
+  box-shadow: 0 0 15px rgba(255, 23, 68, 0.25);
+  text-shadow: 0 0 8px rgba(255, 23, 68, 0.8);
 }
 
 /* Read-only worksite text in employee view */
@@ -770,7 +807,7 @@ body {
 
 .pay-inp::-webkit-inner-spin-button,
 .pay-inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.pay-inp[type=number] { -moz-appearance: textfield; }
+.pay-inp[type=number] { appearance: textfield; -moz-appearance: textfield; }
 
 /* Worksite text input */
 .worksite-cell {

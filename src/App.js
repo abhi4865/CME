@@ -223,20 +223,17 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   const currentDayData = dailyRecords[dateKey] || {};
 
   // ── Inherited worksite ──────────────────────────────────────────
-  // Walk backwards from the current date (inclusive) and return the
-  // most recent worksite that was explicitly set for this employee.
   const getInheritedWorksite = (empId) => {
     for (let d = day; d >= 1; d--) {
       const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const rec = dailyRecords[k]?.[empId];
-      if (rec?.worksiteSet) return rec.worksite;  // explicitly set on day d
+      if (rec?.worksiteSet) return rec.worksite;
     }
-    // Also check earlier months/years by scanning all keys in sorted order
     const allKeys = Object.keys(dailyRecords).sort();
     const cutoff  = dateKey;
     for (let i = allKeys.length - 1; i >= 0; i--) {
       const k = allKeys[i];
-      if (k >= cutoff) continue;                  // skip same-or-future dates
+      if (k >= cutoff) continue;
       const rec = dailyRecords[k]?.[empId];
       if (rec?.worksiteSet) return rec.worksite;
     }
@@ -244,20 +241,17 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   };
 
   // ── Inherited salary ────────────────────────────────────────────
-  // Walk backwards from the day BEFORE the current date and return the
-  // most recent salary that was explicitly typed by admin (paymentSet: true).
   const getInheritedSalary = (empId) => {
     for (let d = day - 1; d >= 1; d--) {
       const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       const rec = dailyRecords[k]?.[empId];
       if (rec?.paymentSet) return rec.payment;
     }
-    // Also check earlier months/years by scanning all keys in sorted order
     const allKeys = Object.keys(dailyRecords).sort();
     const cutoff  = dateKey;
     for (let i = allKeys.length - 1; i >= 0; i--) {
       const k = allKeys[i];
-      if (k >= cutoff) continue;                  // skip same-or-future dates
+      if (k >= cutoff) continue;
       const rec = dailyRecords[k]?.[empId];
       if (rec?.paymentSet) return rec.payment;
     }
@@ -265,10 +259,6 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   };
 
   // ── Mutations ──
-  // 3-state cycle: null (MARK) → 'present' → 'absent' → null
-  // • PRESENT  → auto-fill salary from last explicitly-set salary (getInheritedSalary)
-  // • ABSENT   → salary forced to 0
-  // • MARK     → salary forced to 0
   const cycleStatus = empId => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
     const next = empData.status === null ? 'present'
@@ -285,13 +275,12 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
           ...empData,
           status:     next,
           payment:    newPayment,
-          paymentSet: false,   // auto-filled, not explicitly typed by admin
+          paymentSet: false,
         },
       },
     }));
   };
 
-  // setPayment marks paymentSet: true so future days can inherit this value
   const setPayment = (empId, val) => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
     setDailyRecords(prev => ({
@@ -301,14 +290,12 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
         [empId]: {
           ...empData,
           payment:    Math.max(0, parseInt(val) || 0),
-          paymentSet: true,    // admin explicitly typed this value
+          paymentSet: true,
         },
       },
     }));
   };
 
-  // worksiteSet flag marks that admin explicitly typed a value on this date.
-  // This is what getInheritedWorksite looks for when walking backwards.
   const setWorksite = (empId, val) => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
     setDailyRecords(prev => ({
@@ -318,7 +305,6 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   };
 
   // ── Daily Totals for Stats Strip ──
-  // Only count employees that have been explicitly marked (not null)
   let presentCount = 0;
   let absentCount  = 0;
   let totalDailyPayment = 0;
@@ -435,29 +421,18 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
                 {staff.map((emp, index) => {
                   const record      = currentDayData[emp.id] || { status: null, payment: 0 };
                   const status      = record.status;
-                  // Show the worksite that was set on this day; if none, inherit the
-                  // most recently set value from any earlier date.
                   const worksiteVal = record.worksiteSet
                     ? record.worksite
                     : getInheritedWorksite(emp.id);
                   const isInherited = !record.worksiteSet && worksiteVal !== '';
 
-                  // ── Salary display logic ──────────────────────────────────
-                  // • MARK (null)  → always 0, input disabled
-                  // • ABSENT       → always 0, input disabled
-                  // • PRESENT      → show stored payment (auto-filled or explicit);
-                  //                  show "carried" badge when auto-filled (!paymentSet)
                   const isPaymentDisabled  = status !== 'present';
                   const displayPayment     = isPaymentDisabled ? 0 : record.payment;
                   const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
 
                   return (
                     <tr key={emp.id} className="trow">
-
-                      {/* S.No */}
                       <td className="td-date">{String(index + 1).padStart(2, '0')}</td>
-
-                      {/* Name – click to open profile */}
                       <td>
                         <div className="emp-name-cell">
                           <span
@@ -470,8 +445,6 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
                           <span className="emp-role-sub">{emp.role} · {emp.loginId}</span>
                         </div>
                       </td>
-
-                      {/* 3-state Attendance Button: MARK → Present → Absent → MARK */}
                       <td>
                         <button
                           className={`att-btn ${
@@ -481,13 +454,11 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
                           }`}
                           onClick={() => cycleStatus(emp.id)}
                         >
-                          {status === 'present' ? '✓  Present'
-                           : status === 'absent' ? '✗  Absent'
-                           : '— Mark'}
+                          {status === 'present' ? '● PRESENT'
+                           : status === 'absent'  ? '● ABSENT'
+                           : '○ MARK'}
                         </button>
                       </td>
-
-                      {/* Worksite – inherited from last set date; typing overrides for this date */}
                       <td>
                         <div className="worksite-cell">
                           <input
@@ -501,9 +472,6 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
                           {isInherited && <span className="worksite-badge">carried</span>}
                         </div>
                       </td>
-
-                      {/* Salary Input - mirrors worksite carry logic:
-                          MARK(null)/ABSENT = 0 disabled; PRESENT = auto-fill from last salary */}
                       <td>
                         <div className="worksite-cell">
                           <div className="pay-cell">
@@ -525,7 +493,6 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
                           {isSalaryInherited && <span className="worksite-badge">carried</span>}
                         </div>
                       </td>
-
                     </tr>
                   );
                 })}
@@ -554,7 +521,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
   const [month, setMonth] = useState(now.getMonth());
   const [year]            = useState(now.getFullYear());
 
-  // Derive rows directly from the shared dailyRecords (same source as admin)
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const rows = Array.from({ length: daysInMonth }, (_, i) => {
     const dayNum  = i + 1;
@@ -564,7 +530,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
     return {
       date:     dayNum,
       dayName:  DAY_NAMES[d.getDay()],
-      status:   record?.status ?? null,   // 'present' | 'absent' | null (not yet marked)
+      status:   record?.status ?? null,
       payment:  record?.status === 'present' ? (record?.payment || 0) : 0,
       worksite: record?.worksite || '',
     };
@@ -648,20 +614,17 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
           <tbody>
             {enriched.map(r => (
               <tr key={r.date} className="trow">
-
                 <td className="td-date">{String(r.date).padStart(2, '0')}</td>
                 <td className="td-day">{r.dayName}</td>
-
                 <td>
                   {r.status === 'present' ? (
-                    <span className="badge-off att-present" style={{ padding: '0.4rem 1rem' }}>Present</span>
+                    <span className="badge-off att-present">● PRESENT</span>
                   ) : r.status === 'absent' ? (
-                    <span className="badge-off att-absent" style={{ padding: '0.4rem 1rem' }}>Absent</span>
+                    <span className="badge-off att-absent">● ABSENT</span>
                   ) : (
-                    <span className="badge-off att-pending" style={{ padding: '0.4rem 1rem' }}>Not Marked</span>
+                    <span className="badge-off att-pending">○ NOT MARKED</span>
                   )}
                 </td>
-
                 <td>
                   {r.worksite ? (
                     <span className="worksite-label">{r.worksite}</span>
@@ -669,18 +632,15 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
                     <span className="td-dash">—</span>
                   )}
                 </td>
-
                 <td>
                   <div className="pay-cell">
                     <span className="rupee">₹</span>
                     <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
                   </div>
                 </td>
-
                 <td className="td-cum">
                   <span className="cum-amt">₹{r.cumulative.toLocaleString('en-IN')}</span>
                 </td>
-
               </tr>
             ))}
           </tbody>
@@ -704,7 +664,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
 function App() {
   const [user,         setUser]         = useState(null);
   const [err,          setErr]          = useState('');
-  // ── Shared attendance state – single source of truth for both dashboards ──
   const [dailyRecords, setDailyRecords] = useState({});
 
   const handleLogin = (id, pwd) => {
