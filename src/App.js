@@ -112,6 +112,46 @@ function getOTRate(employeeSettings, empId) {
   return Number(employeeSettings?.[empId]?.overtimeRate) || 0;
 }
 
+// ─── PAYMENT LEDGER HELPERS ─────────────────────────────────────
+function getLastPaymentInMonth(empId, year, month, paymentLedger) {
+  const events = (paymentLedger[empId] || []).filter(e => {
+    const [y, m] = e.date.split('-').map(Number);
+    return y === year && (m - 1) === month;
+  });
+  if (!events.length) return null;
+  return [...events].sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+function getUnpaidEarned(empId, year, month, dailyRecords, employeeSettings, paymentLedger) {
+  const lastPay    = getLastPaymentInMonth(empId, year, month, paymentLedger);
+  const otRate     = getOTRate(employeeSettings, empId);
+  const daysInMo   = new Date(year, month + 1, 0).getDate();
+  const today      = new Date(); today.setHours(23,59,59,999);
+  const startDay   = lastPay ? parseInt(lastPay.date.split('-')[2], 10) + 1 : 1;
+  let sum = 0;
+  for (let d = startDay; d <= daysInMo; d++) {
+    if (new Date(year, month, d) > today) break;
+    const dk  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const rec = dailyRecords[dk]?.[empId];
+    if (rec?.status === 'present') sum += (rec.payment || 0) + (rec.overtimeHours || 0) * otRate;
+  }
+  return sum;
+}
+
+function getMonthlyTotal(empId, year, month, dailyRecords, employeeSettings) {
+  const otRate   = getOTRate(employeeSettings, empId);
+  const daysInMo = new Date(year, month + 1, 0).getDate();
+  const today    = new Date(); today.setHours(23,59,59,999);
+  let sum = 0;
+  for (let d = 1; d <= daysInMo; d++) {
+    if (new Date(year, month, d) > today) break;
+    const dk  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const rec = dailyRecords[dk]?.[empId];
+    if (rec?.status === 'present') sum += (rec.payment || 0) + (rec.overtimeHours || 0) * otRate;
+  }
+  return sum;
+}
+
 // ─── TIME PICKER ──────────────────────────────────────────────────
 function TimePicker({ value, onChange, disabled }) {
   const parts = value ? value.split(':') : ['08', '00'];
@@ -1030,7 +1070,10 @@ function AdminEmployeeProfile({
   employee, month, year, dailyRecords, onBack,
   characterProfiles, setCharacterProfiles,
   employeeSettings, setEmployeeSettings,
+  salaryStructures,
+  paymentLedger, setPaymentLedger,
 }) {
+  const [profileTab, setProfileTab] = useState('admin'); // 'admin' | 'employee'
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   let presentDays      = 0;
@@ -1058,13 +1101,40 @@ function AdminEmployeeProfile({
 
   return (
     <>
-      {/* ── Control Bar ── */}
+      {/* ── Control Bar with profile-tab switcher ── */}
       <div className="month-bar">
         <button className="mtab mtab-on" onClick={onBack}>
           ← Back to Daily List
         </button>
-        <span className="month-display">{MONTH_NAMES[month]} {year} — Monthly Overview</span>
+        {/* Admin / Employee view toggle */}
+        <div className="admin-profile-tabs">
+          <button
+            className={`admin-profile-tab ${profileTab === 'admin' ? 'admin-profile-tab-on' : ''}`}
+            onClick={() => setProfileTab('admin')}
+          >📋 Admin Profile</button>
+          <button
+            className={`admin-profile-tab ${profileTab === 'employee' ? 'admin-profile-tab-on' : ''}`}
+            onClick={() => setProfileTab('employee')}
+          >👤 Employee View</button>
+        </div>
+        <span className="month-display">{MONTH_NAMES[month]} {year} — {employee.name}</span>
       </div>
+
+      {/* ── EMPLOYEE VIEW TAB ── */}
+      {profileTab === 'employee' && (
+        <EmployeeProfileEmpView
+          employee={employee}
+          month={month} year={year}
+          dailyRecords={dailyRecords}
+          salaryStructures={salaryStructures}
+          employeeSettings={employeeSettings}
+          paymentLedger={paymentLedger}
+          setPaymentLedger={setPaymentLedger}
+        />
+      )}
+
+      {/* ── ADMIN VIEW TAB ── */}
+      {profileTab === 'admin' && (<>
 
       {/* ── Monthly Stats ── */}
       <div className="stats-strip" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
@@ -1110,6 +1180,7 @@ function AdminEmployeeProfile({
         characterProfiles={characterProfiles}
         setCharacterProfiles={setCharacterProfiles}
       />
+      </>)}
     </>
   );
 }
@@ -1124,6 +1195,7 @@ function AdminDashboard({
   characterProfiles, setCharacterProfiles,
   salaryStructures, setSalaryStructures,
   employeeSettings, setEmployeeSettings,
+  paymentLedger, setPaymentLedger,
 }) {
   const now  = new Date();
   const [year,          setYear]         = useState(now.getFullYear());
@@ -1314,6 +1386,9 @@ function AdminDashboard({
             setCharacterProfiles={setCharacterProfiles}
             employeeSettings={employeeSettings}
             setEmployeeSettings={setEmployeeSettings}
+            salaryStructures={salaryStructures}
+            paymentLedger={paymentLedger}
+            setPaymentLedger={setPaymentLedger}
           />
         ) : (
           <>
@@ -1643,10 +1718,185 @@ function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, y
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  PAID STATUS BOX  —  admin can click to mark paid; employee views only
+// ═══════════════════════════════════════════════════════════════
+function PaidStatusBox({ empId, year, month, dailyRecords, employeeSettings, paymentLedger, setPaymentLedger, isAdmin }) {
+  const now      = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+  const lastPay      = getLastPaymentInMonth(empId, year, month, paymentLedger);
+  const isPaidToday  = lastPay?.date === todayStr;
+  const unpaidAmt    = getUnpaidEarned(empId, year, month, dailyRecords, employeeSettings, paymentLedger);
+  const monthlyTotal = getMonthlyTotal(empId, year, month, dailyRecords, employeeSettings);
+  const canPay       = isAdmin && isCurrentMonth && !isPaidToday && unpaidAmt > 0;
+
+  const handlePay = () => {
+    if (!canPay) return;
+    setPaymentLedger(prev => ({
+      ...prev,
+      [empId]: [...(prev[empId] || []), { date: todayStr, amount: unpaidAmt }],
+    }));
+  };
+
+  const displayAmt = isPaidToday ? lastPay.amount : unpaidAmt;
+
+  return (
+    <div
+      className={`paid-status-box${isPaidToday ? ' paid-status-paid' : ''}${canPay ? ' paid-status-can-pay' : ''}`}
+      onClick={canPay ? handlePay : undefined}
+      title={canPay ? `Click to mark ₹${unpaidAmt.toLocaleString('en-IN')} as paid` : ''}
+    >
+      <div className="paid-status-top">
+        <span className="paid-status-icon">{isPaidToday ? '✓' : '₹'}</span>
+        <div className="paid-status-vals">
+          <span className="paid-status-amt">₹{displayAmt.toLocaleString('en-IN')}</span>
+          <span className="paid-status-lbl">
+            {isPaidToday
+              ? 'PAID TILL NOW'
+              : canPay
+                ? '⚡ TAP TO PAY'
+                : 'UNPAID EARNED'}
+          </span>
+        </div>
+      </div>
+      <div className="paid-status-footer">
+        <span className="paid-status-footer-lbl">Month Total</span>
+        <span className="paid-status-footer-amt">₹{monthlyTotal.toLocaleString('en-IN')}</span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EMPLOYEE PROFILE EMP-VIEW  —  shown inside AdminEmployeeProfile
+//  Mirrors what the employee sees, PAID box is admin-interactive
+// ═══════════════════════════════════════════════════════════════
+function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStructures, employeeSettings, paymentLedger, setPaymentLedger }) {
+  const [activeTab, setActiveTab] = useState('attendance');
+  const otRate      = getOTRate(employeeSettings, employee.id);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const rows = Array.from({ length: daysInMonth }, (_, i) => {
+    const dayNum  = i + 1;
+    const d       = new Date(year, month, dayNum);
+    const dateKey = `${year}-${String(month+1).padStart(2,'0')}-${String(dayNum).padStart(2,'0')}`;
+    const record  = dailyRecords[dateKey]?.[employee.id];
+    const payment = record?.status === 'present' ? (record?.payment || 0) : 0;
+    const otHours = record?.status === 'present' ? (record?.overtimeHours || 0) : 0;
+    const otPay   = parseFloat((otHours * otRate).toFixed(2));
+    return {
+      date: dayNum, dayName: DAY_NAMES[d.getDay()],
+      status: record?.status ?? null, payment,
+      worksite: record?.worksite || '', otHours, otPay,
+      totalDaily: payment + otPay,
+    };
+  });
+
+  let running = 0;
+  const enriched = rows.map(r => { running += r.totalDaily; return { ...r, cumulative: running }; });
+
+  const presentCount = rows.filter(r => r.status === 'present').length;
+  const absentCount  = rows.filter(r => r.status === 'absent').length;
+  const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
+  const totalOTPay   = rows.reduce((s, r) => s + r.otPay, 0);
+  const totalAllPay  = totalPayment + totalOTPay;
+
+  return (
+    <div className="emp-view-preview">
+      {/* Stats strip — identical to employee view */}
+      <div className="stats-strip emp-preview-strip">
+        <StatCard label="Days Present"  value={presentCount}                                          accentColor="#00C853" />
+        <StatCard label="Days Absent"   value={absentCount}                                           accentColor="#FF1744" />
+        <StatCard label="Working Days"  value={daysInMonth}                                           accentColor="#F5A623" />
+        <StatCard label="OT Rate"       value={otRate ? `₹${otRate}/hr` : '—'}                       accentColor="#F5A623" />
+        <StatCard label="Total Earned"  value={`₹${totalAllPay.toLocaleString('en-IN')}`}            accentColor="#00BFFF" />
+        <PaidStatusBox
+          empId={employee.id}
+          year={year} month={month}
+          dailyRecords={dailyRecords}
+          employeeSettings={employeeSettings}
+          paymentLedger={paymentLedger}
+          setPaymentLedger={setPaymentLedger}
+          isAdmin={true}
+        />
+      </div>
+
+      {/* Tab nav */}
+      <div className="emp-tab-nav">
+        <button className={`emp-tab-btn ${activeTab === 'attendance' ? 'emp-tab-btn-on' : ''}`}
+          onClick={() => setActiveTab('attendance')}>📋 My Attendance</button>
+        <button className={`emp-tab-btn ${activeTab === 'salary' ? 'emp-tab-btn-on' : ''}`}
+          onClick={() => setActiveTab('salary')}>💰 My Salary</button>
+      </div>
+
+      {/* Salary */}
+      {activeTab === 'salary' && (
+        <EmployeeSalaryView
+          employee={employee}
+          salaryStructures={salaryStructures}
+          dailyRecords={dailyRecords}
+          month={month} year={year}
+        />
+      )}
+
+      {/* Attendance table (read-only) */}
+      {activeTab === 'attendance' && (
+        <div className="tbl-wrap">
+          <table className="att-tbl">
+            <thead>
+              <tr>
+                <th>Date</th><th>Day</th><th>Attendance Status</th>
+                <th>Worksite</th><th>Base Pay (₹)</th><th>Total Daily (₹)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {enriched.map(r => (
+                <tr key={r.date} className="trow">
+                  <td className="td-date">{String(r.date).padStart(2,'0')}</td>
+                  <td className="td-day">{r.dayName}</td>
+                  <td>
+                    {r.status === 'present' ? <span className="badge-off att-present">● PRESENT</span>
+                     : r.status === 'absent' ? <span className="badge-off att-absent">● ABSENT</span>
+                     : <span className="badge-off att-pending">○ NOT MARKED</span>}
+                  </td>
+                  <td>{r.worksite ? <span className="worksite-label">{r.worksite}</span> : <span className="td-dash">—</span>}</td>
+                  <td>
+                    <div className="pay-cell">
+                      <span className="rupee">₹</span>
+                      <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
+                    </div>
+                  </td>
+                  <td className="td-cum">
+                    <div className="total-daily-cell">
+                      <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
+                      {r.otHours > 0 && (
+                        <span className="total-daily-sub">+{r.otHours}h OT × ₹{otRate} = ₹{r.otPay.toLocaleString('en-IN')}</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="tfoot-row">
+                <td colSpan={4} className="tfoot-lbl">MONTHLY TOTAL</td>
+                <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
+                <td className="tfoot-amt">₹{totalAllPay.toLocaleString('en-IN')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE DASHBOARD  –  Personal monthly view (read-only)
 //  Character profile is intentionally absent from this view.
 // ═══════════════════════════════════════════════════════════════
-function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures, employeeSettings }) {
+function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures, employeeSettings, paymentLedger }) {
   const now = new Date();
   const [month,        setMonth]        = useState(now.getMonth());
   const [year]                          = useState(now.getFullYear());
@@ -1713,12 +1963,21 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
       </header>
 
       {/* ── STATS STRIP ── */}
-      <div className="stats-strip" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
+      <div className="stats-strip emp-stats-strip">
         <StatCard label="Days Present"    value={presentCount}                                                  accentColor="#00C853" />
         <StatCard label="Days Absent"     value={absentCount}                                                   accentColor="#FF1744" />
         <StatCard label="Working Days"    value={workingDays}                                                   accentColor="#F5A623" />
         <StatCard label="OT Rate"         value={otRate ? `₹${otRate}/hr` : '—'}                               accentColor="#F5A623" />
         <StatCard label="Total Payment"   value={`₹${totalAllPay.toLocaleString('en-IN')}`}                    accentColor="#00BFFF" />
+        <PaidStatusBox
+          empId={employee.id}
+          year={year} month={month}
+          dailyRecords={dailyRecords}
+          employeeSettings={employeeSettings}
+          paymentLedger={paymentLedger || {}}
+          setPaymentLedger={() => {}}
+          isAdmin={false}
+        />
       </div>
 
       {/* ── TAB NAV ── */}
@@ -1843,6 +2102,8 @@ function App() {
   const [salaryStructures,  setSalaryStructures]  = useState({});
   // Per-employee settings (OT rate, etc.) — read-only to employees
   const [employeeSettings,  setEmployeeSettings]  = useState({});
+  // Payment ledger — tracks admin pay-outs; employee sees read-only
+  const [paymentLedger,     setPaymentLedger]     = useState({});
 
   const handleLogin = (id, pwd) => {
     const emp = employees.find(e =>
@@ -1872,6 +2133,8 @@ function App() {
           setSalaryStructures={setSalaryStructures}
           employeeSettings={employeeSettings}
           setEmployeeSettings={setEmployeeSettings}
+          paymentLedger={paymentLedger}
+          setPaymentLedger={setPaymentLedger}
         />
       )}
 
@@ -1883,6 +2146,7 @@ function App() {
           dailyRecords={dailyRecords}
           salaryStructures={salaryStructures}
           employeeSettings={employeeSettings}
+          paymentLedger={paymentLedger}
         />
       )}
     </div>

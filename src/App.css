@@ -2413,3 +2413,180 @@ body {
   .char-actions     { flex-direction: column; align-items: stretch; }
   .char-save-btn    { width: 100%; justify-content: center; text-align: center; }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   PAID STATUS BOX
+   ════════════════════════════════════════════════════════════════ */
+
+.emp-stats-strip,
+.emp-preview-strip {
+  grid-template-columns: repeat(5, 1fr) auto !important;
+  align-items: stretch;
+}
+
+.paid-status-box {
+  background: var(--surf);
+  border-left: 3px solid var(--border2);
+  padding: 1.2rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  cursor: default;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.3s;
+  min-width: 170px;
+}
+
+.paid-status-can-pay {
+  cursor: pointer;
+  border-left-color: var(--amber) !important;
+}
+.paid-status-can-pay:hover {
+  background: rgba(245,166,35,0.07);
+  box-shadow: inset 3px 0 0 var(--amber), 0 0 20px rgba(245,166,35,0.15);
+}
+.paid-status-can-pay:hover .paid-status-lbl {
+  color: var(--amber);
+}
+
+.paid-status-paid {
+  background: rgba(0,200,83,0.09) !important;
+  border-left: 3px solid #00C853 !important;
+  box-shadow: inset 3px 0 0 #00C853, 0 0 22px rgba(0,200,83,0.15);
+}
+
+.paid-status-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.paid-status-icon {
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  color: var(--text-sub);
+  flex-shrink: 0;
+  font-family: var(--mono);
+}
+.paid-status-paid .paid-status-icon {
+  color: #00C853;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.paid-status-vals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.paid-status-amt {
+  font-family: var(--mono);
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1;
+}
+.paid-status-paid .paid-status-amt {
+  color: #00C853;
+}
+.paid-status-can-pay:hover .paid-status-amt {
+  color: var(--amber);
+}
+
+.paid-status-lbl {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-sub);
+  transition: color 0.2s;
+}
+.paid-status-paid .paid-status-lbl {
+  color: #00C853;
+}
+
+.paid-status-footer {
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.paid-status-footer-lbl {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.paid-status-footer-amt {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #29B6F6;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ADMIN PROFILE TABS  (Admin Profile / Employee View switcher)
+   ════════════════════════════════════════════════════════════════ */
+
+.admin-profile-tabs {
+  display: flex;
+  gap: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 9px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
+.admin-profile-tab {
+  padding: 0.35rem 0.9rem;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-sub);
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+}
+.admin-profile-tab:hover:not(.admin-profile-tab-on) {
+  color: var(--text);
+  background: var(--surf2);
+}
+.admin-profile-tab-on {
+  background: var(--amber);
+  color: #000 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEE PROFILE EMP-VIEW  (preview inside admin)
+   ════════════════════════════════════════════════════════════════ */
+
+.emp-view-preview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .emp-stats-strip,
+  .emp-preview-strip {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .paid-status-box { min-width: unset; }
+  .admin-profile-tabs { flex-wrap: wrap; }
+}
+
+@media (max-width: 500px) {
+  .emp-stats-strip,
+  .emp-preview-strip {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
