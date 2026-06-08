@@ -1765,6 +1765,27 @@ body {
 .emp-sal-red   { color: var(--red)   !important; }
 .emp-sal-zero  { color: var(--text-dim) !important; }
 
+/* Monthly cumulative row in salary view */
+.emp-sal-cumulative-row {
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.8rem;
+  background: rgba(0, 190, 255, 0.07);
+  border: 1px solid rgba(0, 190, 255, 0.18);
+  border-radius: 6px;
+}
+
+.emp-sal-cumulative-lbl {
+  font-size: 0.78rem !important;
+  color: #29B6F6 !important;
+  font-weight: 600;
+}
+
+.emp-sal-cumulative-amt {
+  font-size: 0.95rem !important;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
 .emp-sal-empty-line {
   font-size: 0.78rem;
   color: var(--text-sub);
@@ -2282,6 +2303,27 @@ body {
   color: var(--red);
   font-size: 0.65rem;
   font-weight: 600;
+}
+
+/* OT cell wrapper (badge + rate calc stacked) */
+.ot-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* OT rate calculation line below the badge */
+.ot-rate-calc {
+  font-family: var(--mono);
+  font-size: 0.60rem;
+  color: rgba(0, 230, 118, 0.75);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.ot-rate-calc-amt {
+  color: #00E676;
+  font-weight: 700;
 }
 
 /* OT Rate field in AdminEmployeeProfile profile-card */

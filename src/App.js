@@ -120,6 +120,23 @@ function getOTRate(employeeSettings, empId) {
   return Number(employeeSettings?.[empId]?.overtimeRate) || 0;
 }
 
+// Auto-compute out time = timeIn + standardHours
+// e.g. timeIn='09:00', stdH=8 → '17:00'
+function computeAutoOutTime(timeIn, standardHours) {
+  const inM = parseTimeMins(timeIn);
+  if (inM === null) {
+    // fallback: 09:00 + stdH
+    const fallbackOut = 9 * 60 + (Number(standardHours) || 8) * 60;
+    const h = Math.floor(fallbackOut / 60) % 24;
+    const m = fallbackOut % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+  const outM = inM + (Number(standardHours) || 8) * 60;
+  const h = Math.floor(outM / 60) % 24;
+  const m = outM % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
 // ─── PAYMENT LEDGER HELPERS ─────────────────────────────────────
 function getLastPaymentInMonth(empId, year, month, paymentLedger) {
   const events = (paymentLedger[empId] || []).filter(e => {
@@ -162,7 +179,7 @@ function getMonthlyTotal(empId, year, month, dailyRecords, employeeSettings) {
 
 // ─── TIME PICKER ──────────────────────────────────────────────────
 function TimePicker({ value, onChange, disabled }) {
-  const parts = value ? value.split(':') : ['08', '00'];
+  const parts = value ? value.split(':') : ['09', '00'];
   const h = parseInt(parts[0], 10) || 0;
   const m = parseInt(parts[1], 10) || 0;
   const setH = nh => onChange(`${String(nh).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
@@ -1104,7 +1121,7 @@ function AdminEmployeeProfile({
   salaryStructures,
   paymentLedger, setPaymentLedger,
 }) {
-  const [profileTab, setProfileTab] = useState('admin'); // 'admin' | 'employee'
+  const [profileTab, setProfileTab] = useState('employee'); // 'admin' | 'employee'
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   let presentDays      = 0;
@@ -2037,6 +2054,26 @@ function AdminDashboard({
     return 0;
   };
 
+  // ── Inherited timeIn — scans backwards for last explicitly-set timeIn,
+  //    defaults to 09:00 (fixes the "minute not changed → OT not calculated" bug
+  //    by always storing a real value in state instead of leaving timeIn empty)
+  const getInheritedTimeIn = empId => {
+    for (let d = day - 1; d >= 1; d--) {
+      const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.timeInSet && rec?.timeIn) return rec.timeIn;
+    }
+    const allKeys = Object.keys(dailyRecords).sort();
+    const cutoff  = dateKey;
+    for (let i = allKeys.length - 1; i >= 0; i--) {
+      const k = allKeys[i];
+      if (k >= cutoff) continue;
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.timeInSet && rec?.timeIn) return rec.timeIn;
+    }
+    return '09:00'; // default
+  };
+
   // ── Mutations ──
   const cycleStatus = empId => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
@@ -2045,12 +2082,22 @@ function AdminDashboard({
                : null;
 
     const newPayment = next === 'present' ? getInheritedSalary(empId) : 0;
+    // Always seed timeIn with inherited value so OT/UT calc works immediately
+    // without requiring the admin to touch the In picker
+    const newTimeIn  = next === 'present' ? (empData.timeIn || getInheritedTimeIn(empId)) : (empData.timeIn || '');
+    // Auto-set timeOut = timeIn + standardHours (admin can override via picker)
+    const stdH       = empData.standardHours || 8;
+    const newTimeOut = next === 'present'
+      ? (empData.timeOut || computeAutoOutTime(newTimeIn, stdH))
+      : (empData.timeOut || '');
+    // Recalc OT with the seeded times
+    const newOT = next === 'present' ? calcOvertime(newTimeIn, newTimeOut, stdH) : 0;
 
     setDailyRecords(prev => ({
       ...prev,
       [dateKey]: {
         ...prev[dateKey],
-        [empId]: { ...empData, status: next, payment: newPayment, paymentSet: false },
+        [empId]: { ...empData, status: next, payment: newPayment, paymentSet: false, timeIn: newTimeIn, timeOut: newTimeOut, overtimeHours: newOT },
       },
     }));
   };
@@ -2068,17 +2115,22 @@ function AdminDashboard({
 
   const setStandardHours = (empId, val) => {
     setDailyRecords(prev => {
-      const empData = (prev[dateKey] || {})[empId] || {};
-      const ot = calcOvertime(empData.timeIn, empData.timeOut, val);
-      return { ...prev, [dateKey]: { ...prev[dateKey], [empId]: { ...empData, standardHours: Number(val), overtimeHours: ot } } };
+      const empData    = (prev[dateKey] || {})[empId] || {};
+      // Auto-adjust timeOut = timeIn + new stdH, then recompute OT
+      const newTimeOut = computeAutoOutTime(empData.timeIn || '09:00', val);
+      const ot         = calcOvertime(empData.timeIn, newTimeOut, val);
+      return { ...prev, [dateKey]: { ...prev[dateKey], [empId]: { ...empData, standardHours: Number(val), timeOut: newTimeOut, overtimeHours: ot } } };
     });
   };
 
   const setTimeIn = (empId, val) => {
     setDailyRecords(prev => {
       const empData = (prev[dateKey] || {})[empId] || {};
-      const ot = calcOvertime(val, empData.timeOut, empData.standardHours || 8);
-      return { ...prev, [dateKey]: { ...prev[dateKey], [empId]: { ...empData, timeIn: val, overtimeHours: ot } } };
+      const stdH    = empData.standardHours || 8;
+      // Auto-adjust timeOut = new timeIn + stdH, then recompute OT
+      const newTimeOut = computeAutoOutTime(val, stdH);
+      const ot         = calcOvertime(val, newTimeOut, stdH);
+      return { ...prev, [dateKey]: { ...prev[dateKey], [empId]: { ...empData, timeIn: val, timeInSet: true, timeOut: newTimeOut, overtimeHours: ot } } };
     });
   };
 
@@ -2449,9 +2501,28 @@ function AdminDashboard({
 // ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE SALARY VIEW  –  Read-only monthly salary breakdown
 // ═══════════════════════════════════════════════════════════════
-function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, year }) {
-  const struct = getEmpSalary(salaryStructures, employee.id);
-  const calc   = computeMonthSalary(struct, dailyRecords, employee.id, year, month);
+function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, year, employeeSettings }) {
+  const struct  = getEmpSalary(salaryStructures, employee.id);
+  const calc    = computeMonthSalary(struct, dailyRecords, employee.id, year, month);
+  const otRate  = getOTRate(employeeSettings, employee.id);
+
+  // Compute monthly cumulative running total (attendance earnings after paid deductions)
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let monthlyCumulative = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dk  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const rec = dailyRecords[dk]?.[employee.id];
+    const payment  = rec?.status === 'present' ? (rec?.payment || 0) : 0;
+    const stdH     = rec?.standardHours || 8;
+    const otHours  = rec?.status === 'present' ? (rec?.overtimeHours || 0) : 0;
+    const utHours  = rec?.status === 'present' ? calcUnderTime(rec?.timeIn, rec?.timeOut, stdH) : 0;
+    const hourlyRate = stdH > 0 ? payment / stdH : 0;
+    const otPay    = parseFloat((otHours * otRate).toFixed(2));
+    const utPay    = parseFloat((utHours * hourlyRate).toFixed(2));
+    const totalDaily = Math.max(0, payment + otPay - utPay);
+    const paidAmount = rec?.paidAmount || 0;
+    monthlyCumulative += totalDaily - paidAmount;
+  }
 
   return (
     <div className="emp-sal-view">
@@ -2475,6 +2546,14 @@ function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, y
             <span className="emp-sal-item">Daily Rate × Present Days</span>
             <span className="emp-sal-sub">₹{(struct.dailyRate||0).toLocaleString('en-IN')} × {calc.presentDays}</span>
             <span className="emp-sal-amt">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
+          </div>
+          {/* Monthly cumulative from attendance after all payment deductions */}
+          <div className="emp-sal-row emp-sal-cumulative-row">
+            <span className="emp-sal-item emp-sal-cumulative-lbl">📊 Monthly cumulative sum after all payment deduction</span>
+            <span className="emp-sal-sub"></span>
+            <span className={`emp-sal-amt emp-sal-cumulative-amt ${monthlyCumulative < 0 ? 'emp-sal-red' : 'emp-sal-green'}`}>
+              {monthlyCumulative < 0 ? '−' : ''}₹{Math.abs(monthlyCumulative).toLocaleString('en-IN')}
+            </span>
           </div>
         </div>
 
@@ -2683,15 +2762,6 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
         <StatCard label="Working Days"  value={daysInMonth}                                           accentColor="#F5A623" />
         <StatCard label="OT Rate"       value={otRate ? `₹${otRate}/hr` : '—'}                       accentColor="#F5A623" />
         <StatCard label="Total Earned"  value={`₹${totalAllPay.toLocaleString('en-IN')}`}            accentColor="#00BFFF" />
-        <PaidStatusBox
-          empId={employee.id}
-          year={year} month={month}
-          dailyRecords={dailyRecords}
-          employeeSettings={employeeSettings}
-          paymentLedger={paymentLedger}
-          setPaymentLedger={setPaymentLedger}
-          isAdmin={true}
-        />
       </div>
 
       {/* Tab nav */}
@@ -2709,6 +2779,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
           salaryStructures={salaryStructures}
           dailyRecords={dailyRecords}
           month={month} year={year}
+          employeeSettings={employeeSettings}
         />
       )}
 
@@ -2726,7 +2797,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
             </thead>
             <tbody>
               {enriched.map(r => {
-                const payDraft = payInputs[r.dateKey] !== undefined ? payInputs[r.dateKey] : r.totalDaily;
+                const payDraft = payInputs[r.dateKey] !== undefined ? payInputs[r.dateKey] : r.cumulative;
                 const isNeutralized = r.date < latestPaidDateNum && r.paidStatus !== 'paid';
 
                 return (
@@ -2746,7 +2817,12 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
                     </td>
                     <td>
                       <div className="ot-ut-cell">
-                        {r.otHours > 0 && <span className="ot-badge ot-green">+{r.otHours}h OT</span>}
+                        {r.otHours > 0 && (
+                          <div className="ot-cell">
+                            <span className="ot-badge ot-green">+{r.otHours}h OT</span>
+                            <span className="ot-rate-calc">+{r.otHours}h × ₹{otRate} = <span className="ot-rate-calc-amt">₹{r.otPay.toLocaleString('en-IN')}</span></span>
+                          </div>
+                        )}
                         {r.utHours > 0 && (
                           <div className="ut-cell">
                             <span className="ut-red">-{r.utHours}h UT</span>
@@ -2759,9 +2835,6 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
                     <td className="td-cum">
                       <div className="total-daily-cell">
                         <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
-                        {r.otHours > 0 && (
-                          <span className="total-daily-sub">+{r.otHours}h OT × ₹{otRate}</span>
-                        )}
                       </div>
                     </td>
                     <td className="td-cum">
@@ -2956,6 +3029,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
           dailyRecords={dailyRecords}
           month={month}
           year={year}
+          employeeSettings={employeeSettings}
         />
       )}
 
@@ -2996,7 +3070,12 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
                 </td>
                 <td>
                   <div className="ot-ut-cell">
-                    {r.otHours > 0 && <span className="ot-badge ot-green">+{r.otHours}h OT</span>}
+                    {r.otHours > 0 && (
+                      <div className="ot-cell">
+                        <span className="ot-badge ot-green">+{r.otHours}h OT</span>
+                        <span className="ot-rate-calc">+{r.otHours}h × ₹{otRate} = <span className="ot-rate-calc-amt">₹{r.otPay.toLocaleString('en-IN')}</span></span>
+                      </div>
+                    )}
                     {r.utHours > 0 && (
                       <div className="ut-cell">
                         <span className="ut-red">-{r.utHours}h UT</span>
@@ -3009,11 +3088,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
                 <td className="td-cum">
                   <div className="total-daily-cell">
                     <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
-                    {r.otHours > 0 && (
-                      <span className="total-daily-sub">
-                        +{r.otHours}h OT × ₹{otRate} = ₹{r.otPay.toLocaleString('en-IN')}
-                      </span>
-                    )}
                   </div>
                 </td>
                 <td className="td-cum">
@@ -3048,26 +3122,58 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
   );
 }
 
+
+// ─── localStorage helpers ────────────────────────────────────────
+function lsGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  } catch { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
+function usePersisted(key, fallback) {
+  const [state, setState] = useState(() => lsGet(key, fallback));
+  const setPersisted = React.useCallback(valOrFn => {
+    setState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      lsSet(key, next);
+      return next;
+    });
+  }, [key]);
+  return [state, setPersisted];
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  ROOT APP
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  const [employees,         setEmployees]         = useState(INITIAL_EMPLOYEES);
-  const [user,              setUser]              = useState(null);
-  const [err,               setErr]               = useState('');
-  const [dailyRecords,      setDailyRecords]      = useState({});
+  const [employees,        setEmployeesRaw]     = useState(() => lsGet('cme_employees', INITIAL_EMPLOYEES));
+  const [user,             setUser]             = useState(null);
+  const [err,              setErr]              = useState('');
+  const [dailyRecords,     setDailyRecords]     = usePersisted('cme_dailyRecords', {});
   // Character profiles — keyed by employee ID, admin-only, never exposed to EmployeeDashboard
-  const [characterProfiles,  setCharacterProfiles]  = useState({});
-  const [salaryStructures,  setSalaryStructures]  = useState({});
-  // Per-employee settings (OT rate, etc.) — read-only to employees
-  const [employeeSettings,  setEmployeeSettings]  = useState({});
+  const [characterProfiles, setCharacterProfiles] = usePersisted('cme_characterProfiles', {});
+  const [salaryStructures, setSalaryStructures] = usePersisted('cme_salaryStructures', {});
+  // Per-employee settings (OT rate, etc.) — persisted so rate carries across days & sessions
+  const [employeeSettings, setEmployeeSettings] = usePersisted('cme_employeeSettings', {});
   // Payment ledger — tracks admin pay-outs; employee sees read-only
-  const [paymentLedger,     setPaymentLedger]     = useState({});
+  const [paymentLedger,    setPaymentLedger]    = usePersisted('cme_paymentLedger', {});
   // Worksites — managed by admin
-  const [worksites,         setWorksites]         = useState([
+  const [worksites,        setWorksites]        = usePersisted('cme_worksites', [
     { id: 'site_1', name: 'Delhi' },
     { id: 'site_2', name: 'Varanasi' },
   ]);
+
+  // Persist employees (wrap raw setter)
+  const setEmployees = React.useCallback(valOrFn => {
+    setEmployeesRaw(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      lsSet('cme_employees', next);
+      return next;
+    });
+  }, []);
 
   const handleLogin = (id, pwd) => {
     const emp = employees.find(e =>
