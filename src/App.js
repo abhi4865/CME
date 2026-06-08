@@ -251,24 +251,67 @@ function AdminDashboard({ employee, onLogout }) {
     return '';
   };
 
+  // ── Inherited salary ────────────────────────────────────────────
+  // Walk backwards from the day BEFORE the current date and return the
+  // most recent salary that was explicitly typed by admin (paymentSet: true).
+  const getInheritedSalary = (empId) => {
+    for (let d = day - 1; d >= 1; d--) {
+      const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.paymentSet) return rec.payment;
+    }
+    // Also check earlier months/years by scanning all keys in sorted order
+    const allKeys = Object.keys(dailyRecords).sort();
+    const cutoff  = dateKey;
+    for (let i = allKeys.length - 1; i >= 0; i--) {
+      const k = allKeys[i];
+      if (k >= cutoff) continue;                  // skip same-or-future dates
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.paymentSet) return rec.payment;
+    }
+    return 0;
+  };
+
   // ── Mutations ──
   // 3-state cycle: null (MARK) → 'present' → 'absent' → null
+  // • PRESENT  → auto-fill salary from last explicitly-set salary (getInheritedSalary)
+  // • ABSENT   → salary forced to 0
+  // • MARK     → salary forced to 0
   const cycleStatus = empId => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
     const next = empData.status === null ? 'present'
                : empData.status === 'present' ? 'absent'
                : null;
+
+    const newPayment = next === 'present' ? getInheritedSalary(empId) : 0;
+
     setDailyRecords(prev => ({
       ...prev,
-      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, status: next } },
+      [dateKey]: {
+        ...prev[dateKey],
+        [empId]: {
+          ...empData,
+          status:     next,
+          payment:    newPayment,
+          paymentSet: false,   // auto-filled, not explicitly typed by admin
+        },
+      },
     }));
   };
 
+  // setPayment marks paymentSet: true so future days can inherit this value
   const setPayment = (empId, val) => {
     const empData = currentDayData[empId] || { status: null, payment: 0 };
     setDailyRecords(prev => ({
       ...prev,
-      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, payment: Math.max(0, parseInt(val) || 0) } },
+      [dateKey]: {
+        ...prev[dateKey],
+        [empId]: {
+          ...empData,
+          payment:    Math.max(0, parseInt(val) || 0),
+          paymentSet: true,    // admin explicitly typed this value
+        },
+      },
     }));
   };
 
@@ -406,6 +449,16 @@ function AdminDashboard({ employee, onLogout }) {
                     ? record.worksite
                     : getInheritedWorksite(emp.id);
                   const isInherited = !record.worksiteSet && worksiteVal !== '';
+
+                  // ── Salary display logic ──────────────────────────────────
+                  // • MARK (null)  → always 0, input disabled
+                  // • ABSENT       → always 0, input disabled
+                  // • PRESENT      → show stored payment (auto-filled or explicit);
+                  //                  show "carried" badge when auto-filled (!paymentSet)
+                  const isPaymentDisabled  = status !== 'present';
+                  const displayPayment     = isPaymentDisabled ? 0 : record.payment;
+                  const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
+
                   return (
                     <tr key={emp.id} className="trow">
 
@@ -457,17 +510,27 @@ function AdminDashboard({ employee, onLogout }) {
                         </div>
                       </td>
 
-                      {/* Salary Input */}
+                      {/* Salary Input - mirrors worksite carry logic:
+                          MARK(null)/ABSENT = 0 disabled; PRESENT = auto-fill from last salary */}
                       <td>
-                        <div className="pay-cell">
-                          <span className="rupee">₹</span>
-                          <input
-                            className="pay-inp"
-                            type="number"
-                            min="0"
-                            value={record.payment}
-                            onChange={e => setPayment(emp.id, e.target.value)}
-                          />
+                        <div className="worksite-cell">
+                          <div className="pay-cell">
+                            <span className="rupee">₹</span>
+                            <input
+                              className={"pay-inp" + (isSalaryInherited ? " pay-inherited" : "")}
+                              type="number"
+                              min="0"
+                              value={displayPayment}
+                              disabled={isPaymentDisabled}
+                              title={
+                                isPaymentDisabled
+                                  ? (status === "absent" ? "Absent — salary is ₹0" : "Mark attendance first")
+                                  : (isSalaryInherited ? "Auto-filled from previous salary — type to override" : "")
+                              }
+                              onChange={e => setPayment(emp.id, e.target.value)}
+                            />
+                          </div>
+                          {isSalaryInherited && <span className="worksite-badge">carried</span>}
                         </div>
                       </td>
 
