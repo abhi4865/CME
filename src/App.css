@@ -1855,6 +1855,26 @@ body {
   margin-top: 0.3rem;
 }
 
+/* sequence rows inside the NET section */
+.emp-sal-net-seq-row {
+  margin-bottom: 0.55rem;
+}
+.emp-sal-net-seq-lbl {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--text-sub);
+}
+.emp-sal-net-seq-val {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+.emp-sal-net .emp-sal-net-divider {
+  margin-top: 0.8rem;
+  margin-bottom: 1rem;
+}
+
 /* ════════════════════════════════════════════════════════════════
    SALARY DASHBOARD  (admin editor — sidebar + right panel)
    ════════════════════════════════════════════════════════════════ */

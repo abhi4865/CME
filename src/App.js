@@ -973,32 +973,6 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
             </div>
           </div>
 
-          {/* ─── BASIC SALARY ─── */}
-          <div className="salary-section">
-            <div className="salary-section-hdr">
-              <div>
-                <span className="salary-section-title">💼 Basic Salary</span>
-                <span className="salary-section-sub">Daily Rate × Days Present in {MONTH_NAMES[selMo]}</span>
-              </div>
-            </div>
-            <div className="salary-basic-row">
-              <div className="field-group salary-basic-field">
-                <label className="field-lbl">Daily Rate (₹)</label>
-                <div className="pay-cell">
-                  <span className="rupee">₹</span>
-                  <input className="pay-inp" type="number" min="0"
-                    value={struct.dailyRate} onChange={e => setRate(e.target.value)} />
-                </div>
-              </div>
-              <div className="salary-calc-preview">
-                <span className="salary-calc-eq">
-                  ₹{(Number(struct.dailyRate)||0).toLocaleString('en-IN')} × {calc.presentDays} days
-                </span>
-                <span className="salary-calc-result">= ₹{calc.basicSalary.toLocaleString('en-IN')}</span>
-              </div>
-            </div>
-          </div>
-
           {/* ─── INCREMENT ─── */}
           <div className="salary-section">
             <div className="salary-section-hdr">
@@ -1101,7 +1075,8 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
           <div className="sal-net-card">
             <div className="sal-net-title">⚡ NET SALARY — {MONTH_NAMES[selMo]} {selYear}</div>
             <div className="sal-net-formula">
-              {/* Monthly cumulative sum — first step */}
+
+              {/* 1 — Cumulative Sum */}
               <div className="sal-net-row sal-net-cumulative-row">
                 <span className="sal-net-lbl">
                   📊 Monthly Cumulative Sum after all payment deductions
@@ -1111,30 +1086,41 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
                   {monthlyCumulative < 0 ? '−' : ''}₹{Math.abs(monthlyCumulative).toLocaleString('en-IN')}
                 </span>
               </div>
+
+              {/* 2 — Increment */}
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">📈 Increment {struct.increment.type === 'percent' ? `(${struct.increment.value}% of basic)` : '(Fixed)'}</span>
+                <span className={`sal-net-val ${calc.incrementAmt > 0 ? 'sal-plus' : ''}`}>
+                  {calc.incrementAmt > 0 ? '+' : ''}₹{calc.incrementAmt.toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* 3 — Total Allowances */}
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">➕ Total Allowances ({struct.allowances.length} items)</span>
+                <span className={`sal-net-val ${calc.totalAllowances > 0 ? 'sal-plus' : ''}`}>
+                  +₹{calc.totalAllowances.toLocaleString('en-IN')}
+                </span>
+              </div>
+
+              {/* 4 — Total Deductions */}
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">➖ Total Deductions ({struct.deductions.length} items)</span>
+                <span className={`sal-net-val ${calc.totalDeductions > 0 ? 'sal-minus' : ''}`}>
+                  −₹{calc.totalDeductions.toLocaleString('en-IN')}
+                </span>
+              </div>
+
               <div className="sal-net-divider" />
-              <div className="sal-net-row">
-                <span className="sal-net-lbl">Basic Salary ({calc.presentDays} days × ₹{(struct.dailyRate||0).toLocaleString('en-IN')})</span>
-                <span className="sal-net-val">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
-              </div>
-              {calc.incrementAmt > 0 && (
-                <div className="sal-net-row">
-                  <span className="sal-net-lbl">+ Increment {struct.increment.type==='percent'?`(${struct.increment.value}% of basic)`:'(Fixed)'}</span>
-                  <span className="sal-net-val sal-plus">+₹{calc.incrementAmt.toLocaleString('en-IN')}</span>
-                </div>
-              )}
-              <div className="sal-net-row">
-                <span className="sal-net-lbl">+ Total Allowances ({struct.allowances.length} items)</span>
-                <span className="sal-net-val sal-plus">+₹{calc.totalAllowances.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="sal-net-row">
-                <span className="sal-net-lbl">− Total Deductions ({struct.deductions.length} items)</span>
-                <span className="sal-net-val sal-minus">−₹{calc.totalDeductions.toLocaleString('en-IN')}</span>
-              </div>
-              <div className="sal-net-divider" />
+
+              {/* NET TOTAL */}
               <div className="sal-net-row sal-net-total">
                 <span className="sal-net-total-lbl">⚡ NET TOTAL SALARY</span>
-                <span className="sal-net-total-amt">₹{calc.netSalary.toLocaleString('en-IN')}</span>
+                <span className="sal-net-total-amt">
+                  ₹{(monthlyCumulative + calc.totalAllowances + calc.incrementAmt - calc.totalDeductions).toLocaleString('en-IN')}
+                </span>
               </div>
+
             </div>
           </div>
 
@@ -2575,15 +2561,8 @@ function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, y
           </div>
         </div>
 
-        {/* Basic */}
+        {/* Monthly Cumulative Sum — primary figure */}
         <div className="emp-sal-section">
-          <div className="emp-sal-section-lbl">💼 Basic Salary</div>
-          <div className="emp-sal-row">
-            <span className="emp-sal-item">Daily Rate × Present Days</span>
-            <span className="emp-sal-sub">₹{(struct.dailyRate||0).toLocaleString('en-IN')} × {calc.presentDays}</span>
-            <span className="emp-sal-amt">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
-          </div>
-          {/* Monthly cumulative from attendance after all payment deductions */}
           <div className="emp-sal-row emp-sal-cumulative-row">
             <span className="emp-sal-item emp-sal-cumulative-lbl">📊 Monthly cumulative sum after all payment deduction</span>
             <span className="emp-sal-sub"></span>
@@ -2652,15 +2631,47 @@ function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, y
         {/* Net */}
         <div className="emp-sal-net">
           <div className="emp-sal-net-divider" />
+
+          {/* 1 — Cumulative Sum */}
+          <div className="emp-sal-net-row emp-sal-net-seq-row">
+            <span className="emp-sal-net-seq-lbl">📊 Monthly Cumulative Sum</span>
+            <span className={`emp-sal-net-seq-val ${monthlyCumulative < 0 ? 'emp-sal-red' : 'emp-sal-green'}`}>
+              {monthlyCumulative < 0 ? '−' : ''}₹{Math.abs(monthlyCumulative).toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          {/* 2 — Increment */}
+          <div className="emp-sal-net-row emp-sal-net-seq-row">
+            <span className="emp-sal-net-seq-lbl">📈 Increment</span>
+            <span className={`emp-sal-net-seq-val ${calc.incrementAmt > 0 ? 'emp-sal-green' : ''}`}>
+              {calc.incrementAmt > 0 ? '+' : ''}₹{calc.incrementAmt.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          {/* 3 — Total Allowances */}
+          <div className="emp-sal-net-row emp-sal-net-seq-row">
+            <span className="emp-sal-net-seq-lbl">➕ Total Allowances</span>
+            <span className={`emp-sal-net-seq-val ${calc.totalAllowances > 0 ? 'emp-sal-green' : ''}`}>
+              +₹{calc.totalAllowances.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          {/* 4 — Total Deductions */}
+          <div className="emp-sal-net-row emp-sal-net-seq-row">
+            <span className="emp-sal-net-seq-lbl">➖ Total Deductions</span>
+            <span className={`emp-sal-net-seq-val ${calc.totalDeductions > 0 ? 'emp-sal-red' : ''}`}>
+              −₹{calc.totalDeductions.toLocaleString('en-IN')}
+            </span>
+          </div>
+
+          <div className="emp-sal-net-divider" />
+
+          {/* NET TOTAL */}
           <div className="emp-sal-net-row">
             <span className="emp-sal-net-lbl">⚡ NET SALARY</span>
-            <span className="emp-sal-net-amt">₹{calc.netSalary.toLocaleString('en-IN')}</span>
-          </div>
-          <div className="emp-sal-net-hint">
-            ₹{calc.basicSalary.toLocaleString('en-IN')} basic
-            {calc.incrementAmt>0?` + ₹${calc.incrementAmt.toLocaleString('en-IN')} incr.`:''}
-            {` + ₹${calc.totalAllowances.toLocaleString('en-IN')} allow.`}
-            {` − ₹${calc.totalDeductions.toLocaleString('en-IN')} ded.`}
+            <span className="emp-sal-net-amt">
+              ₹{(monthlyCumulative + calc.totalAllowances + calc.incrementAmt - calc.totalDeductions).toLocaleString('en-IN')}
+            </span>
           </div>
         </div>
 
