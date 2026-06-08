@@ -238,6 +238,50 @@ function StarRating({ value, onChange, color = 'var(--amber)' }) {
 // ═══════════════════════════════════════════════════════════════
 //  CHARACTER PROFILE SECTION  —  Admin-only, never shown to employees
 // ═══════════════════════════════════════════════════════════════
+// ─── SALARY HELPERS & DEFAULTS ─────────────────────────────────
+const DEFAULT_ALLOWANCES = [
+  { id: 'ta',    label: 'Travelling Allowance',    amount: 0 },
+  { id: 'da',    label: 'Dearness Allowance',       amount: 0 },
+  { id: 'hra',   label: 'House Rent Allowance',     amount: 0 },
+  { id: 'med',   label: 'Medical Allowance',        amount: 0 },
+  { id: 'ot',    label: 'Overtime Pay',             amount: 0 },
+  { id: 'bonus', label: 'Performance Bonus',        amount: 0 },
+];
+const DEFAULT_DEDUCTIONS = [
+  { id: 'pf',   label: 'Provident Fund',            amount: 0 },
+  { id: 'esi',  label: 'Employee State Insurance',  amount: 0 },
+  { id: 'tds',  label: 'Tax Deduction',             amount: 0 },
+  { id: 'late', label: 'Late / Absence Deduction',  amount: 0 },
+];
+function initSalaryStructure() {
+  return {
+    dailyRate:  500,
+    allowances: DEFAULT_ALLOWANCES.map(a => ({ ...a })),
+    deductions: DEFAULT_DEDUCTIONS.map(d => ({ ...d })),
+    increment:  { type: 'fixed', value: 0 },
+  };
+}
+function getEmpSalary(structs, empId) {
+  return (structs && structs[empId]) ? structs[empId] : initSalaryStructure();
+}
+function computeMonthSalary(structure, dailyRecords, empId, year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let presentDays = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (dailyRecords[key]?.[empId]?.status === 'present') presentDays++;
+  }
+  const dailyRate       = Number(structure.dailyRate) || 0;
+  const basicSalary     = dailyRate * presentDays;
+  const totalAllowances = structure.allowances.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const totalDeductions = structure.deductions.reduce((s, d) => s + (Number(d.amount) || 0), 0);
+  const incrementAmt    = structure.increment.type === 'percent'
+    ? Math.round(basicSalary * (Number(structure.increment.value) || 0) / 100)
+    : (Number(structure.increment.value) || 0);
+  const netSalary = basicSalary + totalAllowances + incrementAmt - totalDeductions;
+  return { presentDays, basicSalary, totalAllowances, totalDeductions, incrementAmt, netSalary };
+}
+
 function CharacterProfileSection({ employee, characterProfiles, setCharacterProfiles }) {
   const getSaved = id => ({ ...EMPTY_CHARACTER, ...(characterProfiles[id] || {}) });
 
@@ -700,6 +744,242 @@ function EmployeeManager({ employees, setEmployees }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  SALARY DASHBOARD  –  Admin salary structure editor
+// ═══════════════════════════════════════════════════════════════
+function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dailyRecords }) {
+  const staff   = employees.filter(e => e.role !== 'Administrator');
+  const now     = new Date();
+  const [selId, setSelId] = useState(staff[0]?.id ?? null);
+  const [selMo, setSelMo] = useState(now.getMonth());
+  const selYear = now.getFullYear();
+
+  const selEmp = staff.find(e => e.id === selId);
+  const struct = selId ? getEmpSalary(salaryStructures, selId) : null;
+  const calc   = (selId && struct)
+    ? computeMonthSalary(struct, dailyRecords, selId, selYear, selMo)
+    : null;
+
+  const upd = fn =>
+    setSalaryStructures(prev => ({ ...prev, [selId]: fn(getEmpSalary(prev, selId)) }));
+
+  const setRate        = v  => upd(s => ({ ...s, dailyRate: Math.max(0, parseInt(v) || 0) }));
+  const setAllowLabel  = (id,v) => upd(s => ({ ...s, allowances: s.allowances.map(a => a.id===id?{...a,label:v}:a) }));
+  const setAllowAmt    = (id,v) => upd(s => ({ ...s, allowances: s.allowances.map(a => a.id===id?{...a,amount:Math.max(0,Number(v)||0)}:a) }));
+  const addAllow       = ()     => upd(s => ({ ...s, allowances: [...s.allowances,{id:`a${Date.now()}`,label:'Custom Allowance',amount:0}] }));
+  const delAllow       = id     => upd(s => ({ ...s, allowances: s.allowances.filter(a => a.id!==id) }));
+  const setDedLabel    = (id,v) => upd(s => ({ ...s, deductions: s.deductions.map(d => d.id===id?{...d,label:v}:d) }));
+  const setDedAmt      = (id,v) => upd(s => ({ ...s, deductions: s.deductions.map(d => d.id===id?{...d,amount:Math.max(0,Number(v)||0)}:d) }));
+  const addDed         = ()     => upd(s => ({ ...s, deductions: [...s.deductions,{id:`d${Date.now()}`,label:'Custom Deduction',amount:0}] }));
+  const delDed         = id     => upd(s => ({ ...s, deductions: s.deductions.filter(d => d.id!==id) }));
+  const setIncrType    = t      => upd(s => ({ ...s, increment: {...s.increment, type:t} }));
+  const setIncrVal     = v      => upd(s => ({ ...s, increment: {...s.increment, value:Math.max(0,Number(v)||0)} }));
+
+  if (!staff.length) return (
+    <div className="salary-empty">
+      <span className="salary-empty-icon">💰</span>
+      <p>No employees registered. Add employees first to configure salaries.</p>
+    </div>
+  );
+
+  return (
+    <div className="salary-panel">
+
+      {/* ── Left: Employee Selector ── */}
+      <div className="salary-emp-list">
+        <div className="salary-emp-list-hdr">Select Employee</div>
+        {staff.map(emp => (
+          <button
+            key={emp.id}
+            className={`salary-emp-item ${selId === emp.id ? 'salary-emp-item-on' : ''}`}
+            onClick={() => setSelId(emp.id)}
+          >
+            <span className="salary-emp-avatar">{emp.name[0]}</span>
+            <div className="salary-emp-meta">
+              <span className="salary-emp-name">{emp.name}</span>
+              <span className="salary-emp-role">{emp.role}</span>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Right: Editor ── */}
+      {selEmp && struct && calc && (
+        <div className="salary-editor">
+
+          <div className="salary-editor-hdr">
+            <div>
+              <h2 className="salary-editor-name">{selEmp.name}</h2>
+              <span className="salary-editor-sub">{selEmp.role} · {selEmp.loginId}</span>
+            </div>
+            <div className="salary-month-sel">
+              <span className="month-bar-lbl">Preview Month:</span>
+              <select className="day-select" value={selMo} onChange={e => setSelMo(Number(e.target.value))}>
+                {MONTH_NAMES.map((m, i) => <option key={i} value={i}>{m} {selYear}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* ─── BASIC SALARY ─── */}
+          <div className="salary-section">
+            <div className="salary-section-hdr">
+              <div>
+                <span className="salary-section-title">💼 Basic Salary</span>
+                <span className="salary-section-sub">Daily Rate × Days Present in {MONTH_NAMES[selMo]}</span>
+              </div>
+            </div>
+            <div className="salary-basic-row">
+              <div className="field-group salary-basic-field">
+                <label className="field-lbl">Daily Rate (₹)</label>
+                <div className="pay-cell">
+                  <span className="rupee">₹</span>
+                  <input className="pay-inp" type="number" min="0"
+                    value={struct.dailyRate} onChange={e => setRate(e.target.value)} />
+                </div>
+              </div>
+              <div className="salary-calc-preview">
+                <span className="salary-calc-eq">
+                  ₹{(Number(struct.dailyRate)||0).toLocaleString('en-IN')} × {calc.presentDays} days
+                </span>
+                <span className="salary-calc-result">= ₹{calc.basicSalary.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── INCREMENT ─── */}
+          <div className="salary-section">
+            <div className="salary-section-hdr">
+              <div>
+                <span className="salary-section-title">📈 Increment</span>
+                <span className="salary-section-sub">Added on top of basic salary</span>
+              </div>
+            </div>
+            <div className="salary-incr-row">
+              <div className="salary-incr-type">
+                <button className={`sal-type-btn ${struct.increment.type==='fixed'?'sal-type-btn-on':''}`}
+                  onClick={() => setIncrType('fixed')}>₹ Fixed Amount</button>
+                <button className={`sal-type-btn ${struct.increment.type==='percent'?'sal-type-btn-on':''}`}
+                  onClick={() => setIncrType('percent')}>% Percentage</button>
+              </div>
+              <div className="pay-cell">
+                <span className="rupee">{struct.increment.type==='percent'?'%':'₹'}</span>
+                <input className="pay-inp" type="number" min="0"
+                  value={struct.increment.value} onChange={e => setIncrVal(e.target.value)} />
+              </div>
+              <span className="salary-calc-result">= ₹{calc.incrementAmt.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+
+          {/* ─── ALLOWANCES ─── */}
+          <div className="salary-section">
+            <div className="salary-section-hdr">
+              <div>
+                <span className="salary-section-title">➕ Allowances</span>
+                <span className="salary-section-sub">Added to basic salary</span>
+              </div>
+              <button className="sal-add-btn" onClick={addAllow}>＋ Add Allowance</button>
+            </div>
+            <div className="tbl-wrap" style={{padding:0,flex:'none'}}>
+              <table className="att-tbl sal-tbl">
+                <thead><tr><th>Allowance Name</th><th>Monthly Amount (₹)</th><th style={{width:52}}></th></tr></thead>
+                <tbody>
+                  {struct.allowances.length===0
+                    ? <tr><td colSpan={3} className="emp-tbl-empty">No allowances added yet.</td></tr>
+                    : struct.allowances.map(a => (
+                      <tr key={a.id} className="trow">
+                        <td><input className="field-inp sal-name-inp" type="text" value={a.label}
+                          onChange={e => setAllowLabel(a.id,e.target.value)} /></td>
+                        <td><div className="pay-cell"><span className="rupee">₹</span>
+                          <input className="pay-inp" type="number" min="0" value={a.amount}
+                            onChange={e => setAllowAmt(a.id,e.target.value)} /></div></td>
+                        <td><button className="sal-del-btn" onClick={() => delAllow(a.id)} title="Remove">✕</button></td>
+                      </tr>
+                    ))}
+                </tbody>
+                <tfoot>
+                  <tr className="tfoot-row">
+                    <td className="tfoot-lbl" style={{textAlign:'right',paddingRight:'2rem'}}>TOTAL ALLOWANCES</td>
+                    <td className="tfoot-amt">₹{calc.totalAllowances.toLocaleString('en-IN')}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* ─── DEDUCTIONS ─── */}
+          <div className="salary-section">
+            <div className="salary-section-hdr">
+              <div>
+                <span className="salary-section-title">➖ Deductions</span>
+                <span className="salary-section-sub">Subtracted from total</span>
+              </div>
+              <button className="sal-add-btn" onClick={addDed}>＋ Add Deduction</button>
+            </div>
+            <div className="tbl-wrap" style={{padding:0,flex:'none'}}>
+              <table className="att-tbl sal-tbl">
+                <thead><tr><th>Deduction Name</th><th>Monthly Amount (₹)</th><th style={{width:52}}></th></tr></thead>
+                <tbody>
+                  {struct.deductions.length===0
+                    ? <tr><td colSpan={3} className="emp-tbl-empty">No deductions added yet.</td></tr>
+                    : struct.deductions.map(d => (
+                      <tr key={d.id} className="trow">
+                        <td><input className="field-inp sal-name-inp" type="text" value={d.label}
+                          onChange={e => setDedLabel(d.id,e.target.value)} /></td>
+                        <td><div className="pay-cell"><span className="rupee">₹</span>
+                          <input className="pay-inp" type="number" min="0" value={d.amount}
+                            onChange={e => setDedAmt(d.id,e.target.value)} /></div></td>
+                        <td><button className="sal-del-btn" onClick={() => delDed(d.id)} title="Remove">✕</button></td>
+                      </tr>
+                    ))}
+                </tbody>
+                <tfoot>
+                  <tr className="tfoot-row">
+                    <td className="tfoot-lbl" style={{textAlign:'right',paddingRight:'2rem'}}>TOTAL DEDUCTIONS</td>
+                    <td className="tfoot-amt">₹{calc.totalDeductions.toLocaleString('en-IN')}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          {/* ─── NET SALARY CARD ─── */}
+          <div className="sal-net-card">
+            <div className="sal-net-title">⚡ NET SALARY — {MONTH_NAMES[selMo]} {selYear}</div>
+            <div className="sal-net-formula">
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">Basic Salary ({calc.presentDays} days × ₹{(struct.dailyRate||0).toLocaleString('en-IN')})</span>
+                <span className="sal-net-val">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
+              </div>
+              {calc.incrementAmt > 0 && (
+                <div className="sal-net-row">
+                  <span className="sal-net-lbl">+ Increment {struct.increment.type==='percent'?`(${struct.increment.value}% of basic)`:'(Fixed)'}</span>
+                  <span className="sal-net-val sal-plus">+₹{calc.incrementAmt.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">+ Total Allowances ({struct.allowances.length} items)</span>
+                <span className="sal-net-val sal-plus">+₹{calc.totalAllowances.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sal-net-row">
+                <span className="sal-net-lbl">− Total Deductions ({struct.deductions.length} items)</span>
+                <span className="sal-net-val sal-minus">−₹{calc.totalDeductions.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="sal-net-divider" />
+              <div className="sal-net-row sal-net-total">
+                <span className="sal-net-total-lbl">⚡ NET TOTAL SALARY</span>
+                <span className="sal-net-total-amt">₹{calc.netSalary.toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ADMIN EMPLOYEE PROFILE
 //  Monthly overview + Character Profile section (admin-only)
 // ═══════════════════════════════════════════════════════════════
@@ -772,6 +1052,7 @@ function AdminDashboard({
   dailyRecords, setDailyRecords,
   employees, setEmployees,
   characterProfiles, setCharacterProfiles,
+  salaryStructures, setSalaryStructures,
 }) {
   const now  = new Date();
   const [year,          setYear]         = useState(now.getFullYear());
@@ -914,6 +1195,12 @@ function AdminDashboard({
           onClick={() => setActiveTab('employees')}
         >
           👥 Manage Employees
+        </button>
+        <button
+          className={`admin-nav-tab ${activeTab === 'salary' ? 'admin-nav-tab-on' : ''}`}
+          onClick={() => { setActiveTab('salary'); setSelectedEmpId(null); }}
+        >
+          💰 Salary Dashboard
         </button>
       </div>
 
@@ -1097,6 +1384,126 @@ function AdminDashboard({
         <EmployeeManager employees={employees} setEmployees={setEmployees} />
       )}
 
+      {/* ════════════════════════════════════════════════════════
+          TAB: SALARY DASHBOARD
+          ════════════════════════════════════════════════════════ */}
+      {activeTab === 'salary' && (
+        <SalaryDashboard
+          employees={employees}
+          salaryStructures={salaryStructures}
+          setSalaryStructures={setSalaryStructures}
+          dailyRecords={dailyRecords}
+        />
+      )}
+
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EMPLOYEE SALARY VIEW  –  Read-only monthly salary breakdown
+// ═══════════════════════════════════════════════════════════════
+function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, year }) {
+  const struct = getEmpSalary(salaryStructures, employee.id);
+  const calc   = computeMonthSalary(struct, dailyRecords, employee.id, year, month);
+
+  return (
+    <div className="emp-sal-view">
+      <div className="emp-sal-card">
+
+        <div className="emp-sal-card-hdr">
+          <div>
+            <div className="emp-sal-title">Monthly Salary Statement</div>
+            <div className="emp-sal-period">{MONTH_NAMES[month]} {year}</div>
+          </div>
+          <div className="emp-sal-present-box">
+            <span className="emp-sal-present-num">{calc.presentDays}</span>
+            <span className="emp-sal-present-lbl">days present</span>
+          </div>
+        </div>
+
+        {/* Basic */}
+        <div className="emp-sal-section">
+          <div className="emp-sal-section-lbl">💼 Basic Salary</div>
+          <div className="emp-sal-row">
+            <span className="emp-sal-item">Daily Rate × Present Days</span>
+            <span className="emp-sal-sub">₹{(struct.dailyRate||0).toLocaleString('en-IN')} × {calc.presentDays}</span>
+            <span className="emp-sal-amt">₹{calc.basicSalary.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {/* Increment */}
+        {calc.incrementAmt > 0 && (
+          <div className="emp-sal-section">
+            <div className="emp-sal-section-lbl">📈 Increment</div>
+            <div className="emp-sal-row">
+              <span className="emp-sal-item">
+                {struct.increment.type === 'percent'
+                  ? `${struct.increment.value}% of Basic Salary`
+                  : 'Fixed Increment'}
+              </span>
+              <span className="emp-sal-sub"></span>
+              <span className="emp-sal-amt emp-sal-green">+₹{calc.incrementAmt.toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Allowances */}
+        <div className="emp-sal-section">
+          <div className="emp-sal-section-lbl">➕ Allowances</div>
+          {struct.allowances.length === 0
+            ? <div className="emp-sal-empty-line">No allowances configured.</div>
+            : struct.allowances.map(a => (
+              <div key={a.id} className="emp-sal-row">
+                <span className="emp-sal-item">{a.label}</span>
+                <span className="emp-sal-sub"></span>
+                <span className={`emp-sal-amt ${Number(a.amount)>0?'emp-sal-green':'emp-sal-zero'}`}>
+                  {Number(a.amount)>0?`+₹${Number(a.amount).toLocaleString('en-IN')}`:'—'}
+                </span>
+              </div>
+            ))}
+          <div className="emp-sal-subtotal">
+            <span>Total Allowances</span>
+            <span className="emp-sal-green">₹{calc.totalAllowances.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {/* Deductions */}
+        <div className="emp-sal-section">
+          <div className="emp-sal-section-lbl">➖ Deductions</div>
+          {struct.deductions.length === 0
+            ? <div className="emp-sal-empty-line">No deductions configured.</div>
+            : struct.deductions.map(d => (
+              <div key={d.id} className="emp-sal-row">
+                <span className="emp-sal-item">{d.label}</span>
+                <span className="emp-sal-sub"></span>
+                <span className={`emp-sal-amt ${Number(d.amount)>0?'emp-sal-red':'emp-sal-zero'}`}>
+                  {Number(d.amount)>0?`−₹${Number(d.amount).toLocaleString('en-IN')}`:'—'}
+                </span>
+              </div>
+            ))}
+          <div className="emp-sal-subtotal">
+            <span>Total Deductions</span>
+            <span className="emp-sal-red">₹{calc.totalDeductions.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+
+        {/* Net */}
+        <div className="emp-sal-net">
+          <div className="emp-sal-net-divider" />
+          <div className="emp-sal-net-row">
+            <span className="emp-sal-net-lbl">⚡ NET SALARY</span>
+            <span className="emp-sal-net-amt">₹{calc.netSalary.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="emp-sal-net-hint">
+            ₹{calc.basicSalary.toLocaleString('en-IN')} basic
+            {calc.incrementAmt>0?` + ₹${calc.incrementAmt.toLocaleString('en-IN')} incr.`:''}
+            {` + ₹${calc.totalAllowances.toLocaleString('en-IN')} allow.`}
+            {` − ₹${calc.totalDeductions.toLocaleString('en-IN')} ded.`}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -1105,10 +1512,11 @@ function AdminDashboard({
 //  EMPLOYEE DASHBOARD  –  Personal monthly view (read-only)
 //  Character profile is intentionally absent from this view.
 // ═══════════════════════════════════════════════════════════════
-function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
+function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures }) {
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth());
-  const [year]            = useState(now.getFullYear());
+  const [month,        setMonth]        = useState(now.getMonth());
+  const [year]                          = useState(now.getFullYear());
+  const [activeEmpTab, setActiveEmpTab] = useState('attendance'); // 'attendance' | 'salary'
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const rows = Array.from({ length: daysInMonth }, (_, i) => {
@@ -1168,6 +1576,18 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
         <StatCard label="Total Payment" value={`₹${totalPayment.toLocaleString('en-IN')}`}   accentColor="#00BFFF" />
       </div>
 
+      {/* ── TAB NAV ── */}
+      <div className="emp-tab-nav">
+        <button
+          className={`emp-tab-btn ${activeEmpTab === 'attendance' ? 'emp-tab-btn-on' : ''}`}
+          onClick={() => setActiveEmpTab('attendance')}
+        >📋 My Attendance</button>
+        <button
+          className={`emp-tab-btn ${activeEmpTab === 'salary' ? 'emp-tab-btn-on' : ''}`}
+          onClick={() => setActiveEmpTab('salary')}
+        >💰 My Salary</button>
+      </div>
+
       {/* ── MONTH PICKER ── */}
       <div className="month-bar">
         <span className="month-bar-lbl">My Attendance</span>
@@ -1185,7 +1605,19 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
         <span className="month-display">{MONTH_NAMES[month]} {year}</span>
       </div>
 
+      {/* ── SALARY VIEW ── */}
+      {activeEmpTab === 'salary' && (
+        <EmployeeSalaryView
+          employee={employee}
+          salaryStructures={salaryStructures}
+          dailyRecords={dailyRecords}
+          month={month}
+          year={year}
+        />
+      )}
+
       {/* ── ATTENDANCE TABLE ── */}
+      {activeEmpTab === 'attendance' && (
       <div className="tbl-wrap">
         <table className="att-tbl">
           <thead>
@@ -1240,6 +1672,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
           </tfoot>
         </table>
       </div>
+      )}
 
     </div>
   );
@@ -1254,7 +1687,8 @@ function App() {
   const [err,               setErr]               = useState('');
   const [dailyRecords,      setDailyRecords]      = useState({});
   // Character profiles — keyed by employee ID, admin-only, never exposed to EmployeeDashboard
-  const [characterProfiles, setCharacterProfiles] = useState({});
+  const [characterProfiles,  setCharacterProfiles]  = useState({});
+  const [salaryStructures,  setSalaryStructures]  = useState({});
 
   const handleLogin = (id, pwd) => {
     const emp = employees.find(e =>
@@ -1280,6 +1714,8 @@ function App() {
           setEmployees={setEmployees}
           characterProfiles={characterProfiles}
           setCharacterProfiles={setCharacterProfiles}
+          salaryStructures={salaryStructures}
+          setSalaryStructures={setSalaryStructures}
         />
       )}
 
@@ -1289,6 +1725,7 @@ function App() {
           employee={user}
           onLogout={handleLogout}
           dailyRecords={dailyRecords}
+          salaryStructures={salaryStructures}
         />
       )}
     </div>

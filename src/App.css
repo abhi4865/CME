@@ -1679,6 +1679,565 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   EMPLOYEE TAB NAV  (My Attendance / My Salary)
+   ════════════════════════════════════════════════════════════════ */
+
+.emp-tab-nav {
+  background: var(--surf);
+  border-bottom: 2px solid var(--border2);
+  padding: 0 2rem;
+  display: flex;
+  gap: 0;
+}
+
+.emp-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.85rem 1.6rem;
+  color: var(--text-sub);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.2s, border-color 0.2s;
+  margin-bottom: -2px;
+  white-space: nowrap;
+}
+
+.emp-tab-btn:hover { color: var(--text); }
+
+.emp-tab-btn-on {
+  color: var(--amber) !important;
+  border-bottom-color: var(--amber);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEE SALARY VIEW  (read-only monthly salary card)
+   ════════════════════════════════════════════════════════════════ */
+
+.emp-sal-view {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.emp-sal-card {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 720px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.45);
+}
+
+.emp-sal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--amber) 0%, transparent 80%);
+}
+
+.emp-sal-card-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.8rem 2rem 1.4rem;
+  border-bottom: 1px solid var(--border2);
+  gap: 1rem;
+}
+
+.emp-sal-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.2px;
+}
+
+.emp-sal-period {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--amber);
+  letter-spacing: 1.5px;
+  margin-top: 0.25rem;
+  text-transform: uppercase;
+}
+
+.emp-sal-present-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,0.22);
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  min-width: 90px;
+}
+
+.emp-sal-present-num {
+  font-family: var(--mono);
+  font-size: 1.9rem;
+  color: var(--amber);
+  line-height: 1;
+}
+
+.emp-sal-present-lbl {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-sub);
+  margin-top: 4px;
+}
+
+.emp-sal-section {
+  border-bottom: 1px solid var(--border);
+  padding: 1.2rem 2rem;
+}
+
+.emp-sal-section-lbl {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-sub);
+  font-weight: 700;
+  margin-bottom: 0.8rem;
+}
+
+.emp-sal-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem 0;
+}
+
+.emp-sal-item  { font-size: 0.85rem; color: var(--text); }
+.emp-sal-sub   { font-family: var(--mono); font-size: 0.75rem; color: var(--text-sub); text-align: right; }
+
+.emp-sal-amt {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--text);
+  text-align: right;
+  min-width: 120px;
+}
+
+.emp-sal-green { color: var(--green) !important; }
+.emp-sal-red   { color: var(--red)   !important; }
+.emp-sal-zero  { color: var(--text-dim) !important; }
+
+.emp-sal-empty-line {
+  font-size: 0.78rem;
+  color: var(--text-sub);
+  font-style: italic;
+}
+
+.emp-sal-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border2);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-sub);
+}
+
+.emp-sal-subtotal span:last-child {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+}
+
+.emp-sal-net {
+  padding: 1.4rem 2rem 1.8rem;
+  background: var(--amber-dim);
+}
+
+.emp-sal-net-divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--amber), transparent);
+  margin-bottom: 1.2rem;
+  opacity: 0.35;
+}
+
+.emp-sal-net-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.emp-sal-net-lbl {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--amber);
+}
+
+.emp-sal-net-amt {
+  font-family: var(--mono);
+  font-size: 2rem;
+  color: var(--amber);
+  letter-spacing: 1px;
+  text-shadow: 0 0 28px rgba(245,166,35,0.45);
+}
+
+.emp-sal-net-hint {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--text-sub);
+  letter-spacing: 0.5px;
+  margin-top: 0.3rem;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   SALARY DASHBOARD  (admin editor — sidebar + right panel)
+   ════════════════════════════════════════════════════════════════ */
+
+.salary-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.salary-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: var(--text-sub);
+  font-size: 0.9rem;
+}
+
+.salary-empty-icon { font-size: 3.5rem; }
+
+/* Left sidebar */
+.salary-emp-list {
+  width: 252px;
+  flex-shrink: 0;
+  background: var(--surf);
+  border-right: 1px solid var(--border2);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 118px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+.salary-emp-list-hdr {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-sub);
+  font-weight: 700;
+  padding: 1rem 1.2rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.salary-emp-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1.2rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.salary-emp-item:hover { background: rgba(255,255,255,0.025); }
+
+.salary-emp-item-on {
+  background: var(--amber-dim) !important;
+  border-left: 3px solid var(--amber);
+}
+
+.salary-emp-avatar {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--amber), #E8850A);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.salary-emp-meta   { display: flex; flex-direction: column; overflow: hidden; }
+.salary-emp-name   { font-size: 0.82rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.salary-emp-role   { font-size: 0.65rem; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Right editor */
+.salary-editor {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  min-width: 0;
+}
+
+.salary-editor-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding-bottom: 1.2rem;
+  border-bottom: 1px solid var(--border2);
+}
+
+.salary-editor-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.salary-editor-sub {
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  font-family: var(--mono);
+  margin-top: 0.2rem;
+  display: block;
+}
+
+.salary-month-sel { display: flex; align-items: center; gap: 0.7rem; }
+
+/* Section cards */
+.salary-section {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.salary-section::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--amber) 0%, transparent 70%);
+}
+
+.salary-section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.4rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.salary-section-title { font-size: 0.88rem; font-weight: 800; color: var(--text); display: block; }
+.salary-section-sub   { font-size: 0.68rem; color: var(--text-sub); display: block; margin-top: 2px; }
+
+.salary-basic-row {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.2rem 1.4rem;
+  flex-wrap: wrap;
+}
+
+.salary-basic-field { margin-bottom: 0 !important; }
+
+.salary-calc-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.salary-calc-eq {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  color: var(--text-sub);
+}
+
+.salary-calc-result {
+  font-family: var(--mono);
+  font-size: 1rem;
+  color: var(--amber);
+  white-space: nowrap;
+}
+
+.salary-incr-row {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  padding: 1.2rem 1.4rem;
+  flex-wrap: wrap;
+}
+
+.salary-incr-type { display: flex; gap: 4px; }
+
+.sal-type-btn {
+  background: var(--bg);
+  border: 1.5px solid var(--border2);
+  border-radius: 7px;
+  padding: 0.42rem 0.9rem;
+  color: var(--text-sub);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.sal-type-btn:hover      { color: var(--text); border-color: var(--amber); }
+.sal-type-btn-on         { background: var(--amber-glow); border-color: var(--amber); color: var(--amber); }
+
+.sal-tbl { min-width: 420px; }
+
+.sal-name-inp {
+  padding: 0.38rem 0.7rem !important;
+  font-size: 0.82rem !important;
+  width: 100%;
+  min-width: 180px;
+}
+
+.sal-add-btn {
+  background: transparent;
+  border: 1.5px dashed rgba(245,166,35,0.4);
+  border-radius: 7px;
+  padding: 0.38rem 0.9rem;
+  color: var(--amber);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.sal-add-btn:hover { background: var(--amber-dim); border-color: var(--amber); }
+
+.sal-del-btn {
+  background: transparent;
+  border: 1px solid rgba(255,23,68,0.3);
+  border-radius: 6px;
+  padding: 0.3rem 0.55rem;
+  color: var(--red);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+}
+
+.sal-del-btn:hover { background: var(--red-bg); border-color: var(--red); }
+
+/* Net salary card */
+.sal-net-card {
+  background: var(--surf);
+  border: 1px solid rgba(245,166,35,0.28);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(245,166,35,0.08), 0 8px 36px rgba(0,0,0,0.45);
+}
+
+.sal-net-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--amber), transparent);
+}
+
+.sal-net-title {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--amber);
+  padding: 1.1rem 1.6rem 0.8rem;
+  border-bottom: 1px solid var(--border2);
+}
+
+.sal-net-formula {
+  padding: 1.2rem 1.6rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sal-net-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sal-net-lbl  { font-size: 0.82rem; color: var(--text-sub); }
+
+.sal-net-val {
+  font-family: var(--mono);
+  font-size: 0.88rem;
+  color: var(--text);
+  text-align: right;
+  min-width: 140px;
+}
+
+.sal-plus  { color: var(--green) !important; }
+.sal-minus { color: var(--red)   !important; }
+
+.sal-net-divider {
+  height: 1px;
+  background: linear-gradient(90deg, var(--amber), transparent);
+  margin: 0.5rem 0;
+  opacity: 0.3;
+}
+
+.sal-net-total .sal-net-lbl   { display: none; }
+
+.sal-net-total-lbl {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--amber);
+}
+
+.sal-net-total-amt {
+  font-family: var(--mono);
+  font-size: 1.85rem;
+  color: var(--amber);
+  letter-spacing: 1px;
+  text-shadow: 0 0 28px rgba(245,166,35,0.5);
+  text-align: right;
+}
+
+/* ════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════ */
 
@@ -1709,6 +2268,20 @@ body {
   .char-field     { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
   .char-banner    { flex-direction: column; align-items: flex-start; }
   .char-banner-right { width: 100%; }
+  /* Salary mobile */
+  .salary-panel      { flex-direction: column; }
+  .salary-emp-list   { width: 100%; position: static; max-height: none; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--border2); padding: 0.5rem; gap: 0.4rem; }
+  .salary-emp-list-hdr { display: none; }
+  .salary-emp-item   { flex: 1; min-width: 140px; border-radius: 8px; border-bottom: none; border: 1px solid var(--border2); }
+  .salary-editor     { padding: 1rem; }
+  .salary-editor-hdr { flex-direction: column; align-items: flex-start; }
+  .emp-sal-view      { padding: 1rem; }
+  .emp-sal-card-hdr  { flex-direction: column; align-items: flex-start; }
+  .emp-sal-net-amt   { font-size: 1.5rem; }
+  .emp-sal-row       { grid-template-columns: 1fr auto; }
+  .emp-sal-sub       { display: none; }
+  .sal-net-total-amt { font-size: 1.4rem; }
+  .emp-tab-nav       { padding: 0 1rem; }
 }
 
 @media (max-width: 500px) {
