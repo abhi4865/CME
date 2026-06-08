@@ -3392,15 +3392,24 @@ function App() {
     });
   }, []);
 
-  const handleLogin = (id, pwd) => {
-    const emp = employees.find(e =>
-      e.loginId.toLowerCase() === id.toLowerCase() && e.password === pwd
-    );
-    if (emp) { setUser(emp); setErr(''); }
-    else     { setErr('Invalid Login ID or Password. Please try again.'); }
+  const handleLogin = async (id, pwd) => {
+    try {
+      setErr('');
+      const res  = await fetch('http://localhost:5000/api/auth/login', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify({ loginId: id, password: pwd }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.message || 'Invalid Login ID or Password.'); return; }
+      localStorage.setItem('cme_token', data.token);
+      setUser(data.employee);
+    } catch (e) {
+      setErr('Server unreachable. Make sure backend is running.');
+    }
   };
 
-  const handleLogout = () => { setUser(null); setErr(''); };
+  const handleLogout = () => { setUser(null); setErr(''); localStorage.removeItem('cme_token'); };
 
   // Main admin = anyone with role 'Administrator' (the ADMIN account)
   // Admin Manager = secondary admin, cannot manage other admin managers
