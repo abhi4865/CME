@@ -1186,6 +1186,466 @@ function AdminEmployeeProfile({
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  WORKSITE DASHBOARD  –  Admin-only, two-level site manager
+// ═══════════════════════════════════════════════════════════════
+function WorksiteDashboard({ worksites, setWorksites, dailyRecords, employees }) {
+  const [activeSiteId,  setActiveSiteId]  = useState(null);
+  const [materials,     setMaterials]     = useState({});   // { siteId: [{id,name,qty,unit,notes}] }
+  const [photos,        setPhotos]        = useState({});   // { siteId: [{id,src}] }
+  const [lightboxSrc,   setLightboxSrc]   = useState(null);
+  const [renameId,      setRenameId]      = useState(null);
+  const [renameDraft,   setRenameDraft]   = useState('');
+  const [deleteTarget,  setDeleteTarget]  = useState(null);
+  const fileInputRef = React.useRef(null);
+
+  const staff = employees.filter(e => e.role !== 'Administrator');
+
+  // ── Helpers ──────────────────────────────────────────────────
+  const getSiteRecords = (siteName) => {
+    const result = [];
+    Object.entries(dailyRecords).forEach(([dateKey, dayData]) => {
+      Object.entries(dayData).forEach(([empIdStr, rec]) => {
+        if (rec?.worksite === siteName) {
+          const emp = staff.find(e => e.id === Number(empIdStr));
+          result.push({ dateKey, empId: Number(empIdStr), empName: emp?.name || '—', rec });
+        }
+      });
+    });
+    return result.sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  };
+
+  const getSiteStats = (site) => {
+    const recs = getSiteRecords(site.name);
+    const dates = new Set(recs.map(r => r.dateKey));
+    const emps  = new Set(recs.map(r => r.empId));
+    const payout = recs.reduce((s, r) => s + (r.rec.status === 'present' ? (r.rec.payment || 0) : 0), 0);
+    return { totalDays: dates.size, totalEmps: emps.size, totalPayout: payout, totalPresent: recs.filter(r=>r.rec.status==='present').length };
+  };
+
+  // ── Site mutations ────────────────────────────────────────────
+  const addSite = () => {
+    const raw = window.prompt('Enter new worksite name:');
+    if (!raw) return;
+    const name = raw.trim();
+    if (!name) return;
+    if (worksites.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+      window.alert(`A site named "${name}" already exists.`);
+      return;
+    }
+    setWorksites(prev => [...prev, { id: `site_${Date.now()}`, name }]);
+  };
+
+  const doDeleteSite = () => {
+    if (!deleteTarget) return;
+    setWorksites(prev => prev.filter(s => s.id !== deleteTarget.id));
+    if (activeSiteId === deleteTarget.id) setActiveSiteId(null);
+    setDeleteTarget(null);
+  };
+
+  const startRename = (site) => { setRenameId(site.id); setRenameDraft(site.name); };
+
+  const commitRename = () => {
+    const name = renameDraft.trim();
+    if (!name) { setRenameId(null); return; }
+    if (worksites.some(s => s.name.toLowerCase() === name.toLowerCase() && s.id !== renameId)) {
+      window.alert(`A site named "${name}" already exists.`);
+      return;
+    }
+    setWorksites(prev => prev.map(s => s.id === renameId ? { ...s, name } : s));
+    setRenameId(null);
+  };
+
+  // ── Material mutations ────────────────────────────────────────
+  const getMats = siteId => materials[siteId] || [];
+
+  const addMaterial = siteId => setMaterials(prev => ({
+    ...prev,
+    [siteId]: [...getMats(siteId), { id: `mat_${Date.now()}`, name: '', qty: '', unit: '', notes: '' }],
+  }));
+
+  const updateMat = (siteId, matId, field, val) => setMaterials(prev => ({
+    ...prev,
+    [siteId]: getMats(siteId).map(m => m.id === matId ? { ...m, [field]: val } : m),
+  }));
+
+  const deleteMat = (siteId, matId) => setMaterials(prev => ({
+    ...prev,
+    [siteId]: getMats(siteId).filter(m => m.id !== matId),
+  }));
+
+  // ── Photo mutations ───────────────────────────────────────────
+  const getPhotos = siteId => photos[siteId] || [];
+
+  const handlePhotoUpload = (siteId, files) => {
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        setPhotos(prev => ({
+          ...prev,
+          [siteId]: [...(prev[siteId] || []), { id: `ph_${Date.now()}_${Math.random()}`, src: e.target.result }],
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const deletePhoto = (siteId, photoId) => setPhotos(prev => ({
+    ...prev,
+    [siteId]: getPhotos(siteId).filter(p => p.id !== photoId),
+  }));
+
+  const activeSite = worksites.find(s => s.id === activeSiteId);
+
+  // ════════════════════════════════════════════════════════════
+  //  LEVEL 2 — Individual Site Dashboard
+  // ════════════════════════════════════════════════════════════
+  if (activeSite) {
+    const siteRecs = getSiteRecords(activeSite.name);
+    const stats    = getSiteStats(activeSite);
+    const mats     = getMats(activeSite.id);
+    const sitePhotos = getPhotos(activeSite.id);
+
+    return (
+      <div className="ws-page">
+        {/* Lightbox */}
+        {lightboxSrc && (
+          <div className="lightbox-overlay" onClick={() => setLightboxSrc(null)}>
+            <div className="lightbox-close" onClick={() => setLightboxSrc(null)}>✕</div>
+            <img
+              className="lightbox-img"
+              src={lightboxSrc}
+              alt="Site"
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+        )}
+
+        {/* ── Top bar ── */}
+        <div className="ws-topbar">
+          <button className="mtab mtab-on ws-back-btn" onClick={() => setActiveSiteId(null)}>
+            ← All Sites
+          </button>
+          <div className="ws-site-title-row">
+            {renameId === activeSite.id ? (
+              <div className="ws-rename-row">
+                <input
+                  className="field-inp ws-rename-inp"
+                  value={renameDraft}
+                  onChange={e => setRenameDraft(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenameId(null); }}
+                  autoFocus
+                />
+                <button className="ws-rename-ok" onClick={commitRename}>✓ Save</button>
+                <button className="ws-rename-cancel" onClick={() => setRenameId(null)}>✕</button>
+              </div>
+            ) : (
+              <>
+                <h2 className="ws-site-name">🏗 {activeSite.name}</h2>
+                <button className="ws-rename-btn" onClick={() => startRename(activeSite)}>✏ Rename</button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Stats Strip ── */}
+        <div className="stats-strip" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+          <StatCard label="Total Days Logged"      value={stats.totalDays}                                   accentColor="#F5A623" />
+          <StatCard label="Employees Assigned"     value={stats.totalEmps}                                   accentColor="#00BFFF" />
+          <StatCard label="Present Entries"        value={stats.totalPresent}                                accentColor="#00C853" />
+          <StatCard label="Total Site Payout"      value={`₹${stats.totalPayout.toLocaleString('en-IN')}`}  accentColor="#F5A623" />
+        </div>
+
+        {/* ── Attendance Log ── */}
+        <div className="ws-section">
+          <div className="ws-section-hdr">
+            <span className="ws-section-title">📋 Attendance Log</span>
+            <span className="ws-section-sub">{siteRecs.length} entr{siteRecs.length === 1 ? 'y' : 'ies'} for {activeSite.name}</span>
+          </div>
+          <div className="tbl-wrap" style={{ padding: 0 }}>
+            <table className="att-tbl">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Employee Name</th>
+                  <th>Status</th>
+                  <th>Pay (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {siteRecs.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="emp-tbl-empty">
+                      No attendance records found for this worksite. Mark attendance with this site assigned to populate the log.
+                    </td>
+                  </tr>
+                ) : (
+                  siteRecs.map((r, i) => (
+                    <tr key={i} className="trow">
+                      <td className="td-date">{r.dateKey}</td>
+                      <td>
+                        <div className="emp-name-cell">
+                          <span className="user-name">{r.empName}</span>
+                        </div>
+                      </td>
+                      <td>
+                        {r.rec.status === 'present' ? (
+                          <span className="badge-off att-present">● PRESENT</span>
+                        ) : r.rec.status === 'absent' ? (
+                          <span className="badge-off att-absent">● ABSENT</span>
+                        ) : (
+                          <span className="badge-off att-pending">○ NOT MARKED</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="pay-cell">
+                          <span className="rupee">₹</span>
+                          <span className="cum-amt">
+                            {r.rec.status === 'present' ? (r.rec.payment || 0).toLocaleString('en-IN') : '0'}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Site Materials ── */}
+        <div className="ws-section">
+          <div className="ws-section-hdr">
+            <div>
+              <span className="ws-section-title">🧱 Site Materials</span>
+              <span className="ws-section-sub">Track supplies and consumables for this site</span>
+            </div>
+            <button className="emp-btn-add ws-add-mat-btn" onClick={() => addMaterial(activeSite.id)}>
+              ＋ Add Material
+            </button>
+          </div>
+          <div className="tbl-wrap" style={{ padding: 0 }}>
+            <table className="att-tbl ws-mat-tbl">
+              <thead>
+                <tr>
+                  <th>Material Name</th>
+                  <th>Quantity</th>
+                  <th>Unit</th>
+                  <th>Notes</th>
+                  <th style={{ width: 50 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {mats.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="emp-tbl-empty">
+                      No materials added yet. Click "＋ Add Material" to track site supplies.
+                    </td>
+                  </tr>
+                ) : (
+                  mats.map(mat => (
+                    <tr key={mat.id} className="trow">
+                      <td>
+                        <input
+                          className="field-inp ws-mat-inp"
+                          type="text"
+                          placeholder="e.g. Cement"
+                          value={mat.name}
+                          onChange={e => updateMat(activeSite.id, mat.id, 'name', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="field-inp ws-mat-inp ws-mat-qty"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={mat.qty}
+                          onChange={e => updateMat(activeSite.id, mat.id, 'qty', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="field-inp ws-mat-inp ws-mat-unit"
+                          type="text"
+                          placeholder="bags / kg / pcs"
+                          value={mat.unit}
+                          onChange={e => updateMat(activeSite.id, mat.id, 'unit', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          className="field-inp ws-mat-inp"
+                          type="text"
+                          placeholder="Optional notes…"
+                          value={mat.notes}
+                          onChange={e => updateMat(activeSite.id, mat.id, 'notes', e.target.value)}
+                        />
+                      </td>
+                      <td>
+                        <button
+                          className="sal-del-btn"
+                          onClick={() => deleteMat(activeSite.id, mat.id)}
+                          title="Remove row"
+                        >
+                          🗑
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ── Site Photos ── */}
+        <div className="ws-section ws-photos-section">
+          <div className="ws-section-hdr">
+            <div>
+              <span className="ws-section-title">📸 Site Photos</span>
+              <span className="ws-section-sub">{sitePhotos.length} photo{sitePhotos.length !== 1 ? 's' : ''} uploaded</span>
+            </div>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={e => { handlePhotoUpload(activeSite.id, e.target.files); e.target.value = ''; }}
+          />
+
+          <div
+            className="photo-upload-box"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('photo-upload-box-drag'); }}
+            onDragLeave={e => e.currentTarget.classList.remove('photo-upload-box-drag')}
+            onDrop={e => {
+              e.preventDefault();
+              e.currentTarget.classList.remove('photo-upload-box-drag');
+              handlePhotoUpload(activeSite.id, e.dataTransfer.files);
+            }}
+          >
+            <span className="photo-upload-icon">📷</span>
+            <span className="photo-upload-lbl">Click to upload or drag &amp; drop site photos</span>
+            <span className="photo-upload-hint">Supports JPG, PNG, WEBP, GIF</span>
+          </div>
+
+          {sitePhotos.length > 0 && (
+            <div className="photo-grid">
+              {sitePhotos.map(ph => (
+                <div key={ph.id} className="photo-thumb" onClick={() => setLightboxSrc(ph.src)}>
+                  <img src={ph.src} alt="Site" />
+                  <button
+                    className="photo-del-btn"
+                    onClick={e => { e.stopPropagation(); deletePhoto(activeSite.id, ph.id); }}
+                    title="Delete photo"
+                  >
+                    🗑
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  LEVEL 1 — Site List (card grid)
+  // ════════════════════════════════════════════════════════════
+  return (
+    <div className="ws-page">
+      {/* Delete confirm modal */}
+      {deleteTarget && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="confirm-icon">⚠</div>
+            <h3 className="confirm-title">Delete Worksite?</h3>
+            <p className="confirm-msg">
+              Remove <strong>{deleteTarget.name}</strong>? This only removes the site entry.
+              Attendance records already saved with this worksite name will remain unchanged.
+            </p>
+            <div className="confirm-actions">
+              <button className="emp-btn-cancel" onClick={() => setDeleteTarget(null)}>Cancel</button>
+              <button className="emp-btn-delete-confirm" onClick={doDeleteSite}>Yes, Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="ws-list-header">
+        <div>
+          <h2 className="ws-list-title">🏗 Worksite Dashboard</h2>
+          <p className="ws-list-sub">
+            {worksites.length} site{worksites.length !== 1 ? 's' : ''} registered
+          </p>
+        </div>
+        <button className="emp-btn-add" onClick={addSite}>＋ Add Site</button>
+      </div>
+
+      {worksites.length === 0 ? (
+        <div className="ws-empty">
+          <span className="ws-empty-icon">🏗</span>
+          <p>No worksites registered. Click "＋ Add Site" to create your first worksite.</p>
+        </div>
+      ) : (
+        <div className="site-card-grid">
+          {worksites.map(site => {
+            const stats = getSiteStats(site);
+            return (
+              <div key={site.id} className="site-card">
+                <div className="site-card-top">
+                  <div className="site-card-icon">🏗</div>
+                  <div className="site-card-info">
+                    <div className="site-card-name">{site.name}</div>
+                    <div className="site-card-stats">
+                      <span className="site-card-stat">
+                        <span className="site-card-stat-val">{stats.totalDays}</span>
+                        <span className="site-card-stat-lbl">days logged</span>
+                      </span>
+                      <span className="site-card-stat-sep">·</span>
+                      <span className="site-card-stat">
+                        <span className="site-card-stat-val">{stats.totalEmps}</span>
+                        <span className="site-card-stat-lbl">employees</span>
+                      </span>
+                      <span className="site-card-stat-sep">·</span>
+                      <span className="site-card-stat">
+                        <span className="site-card-stat-val site-card-payout">
+                          ₹{stats.totalPayout.toLocaleString('en-IN')}
+                        </span>
+                        <span className="site-card-stat-lbl">payout</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="site-card-actions">
+                  <button
+                    className="login-btn site-card-open-btn"
+                    onClick={() => setActiveSiteId(site.id)}
+                  >
+                    🏗 Open Dashboard
+                  </button>
+                  <button
+                    className="site-card-del-btn"
+                    onClick={() => setDeleteTarget(site)}
+                    title="Delete site"
+                  >
+                    🗑
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD  –  Daily roster + Employee Management tabs
 // ═══════════════════════════════════════════════════════════════
 function AdminDashboard({
@@ -1196,6 +1656,7 @@ function AdminDashboard({
   salaryStructures, setSalaryStructures,
   employeeSettings, setEmployeeSettings,
   paymentLedger, setPaymentLedger,
+  worksites, setWorksites,
 }) {
   const now  = new Date();
   const [year,          setYear]         = useState(now.getFullYear());
@@ -1336,6 +1797,12 @@ function AdminDashboard({
           onClick={() => setActiveTab('employees')}
         >
           👥 Manage Employees
+        </button>
+        <button
+          className={`admin-nav-tab ${activeTab === 'worksites' ? 'admin-nav-tab-on' : ''}`}
+          onClick={() => { setActiveTab('worksites'); setSelectedEmpId(null); }}
+        >
+          🏗 Worksite Dashboard
         </button>
         <button
           className={`admin-nav-tab ${activeTab === 'salary' ? 'admin-nav-tab-on' : ''}`}
@@ -1547,6 +2014,18 @@ function AdminDashboard({
           ══════════════════════════════════════════════════════════ */}
       {activeTab === 'employees' && (
         <EmployeeManager employees={employees} setEmployees={setEmployees} />
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB: WORKSITE DASHBOARD
+          ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'worksites' && (
+        <WorksiteDashboard
+          worksites={worksites}
+          setWorksites={setWorksites}
+          dailyRecords={dailyRecords}
+          employees={employees}
+        />
       )}
 
       {/* ════════════════════════════════════════════════════════
@@ -2050,6 +2529,11 @@ function App() {
   const [employeeSettings,  setEmployeeSettings]  = useState({});
   // Payment ledger — tracks admin pay-outs; employee sees read-only
   const [paymentLedger,     setPaymentLedger]     = useState({});
+  // Worksites — managed by admin
+  const [worksites,         setWorksites]         = useState([
+    { id: 'site_1', name: 'Delhi' },
+    { id: 'site_2', name: 'Varanasi' },
+  ]);
 
   const handleLogin = (id, pwd) => {
     const emp = employees.find(e =>
@@ -2081,6 +2565,8 @@ function App() {
           setEmployeeSettings={setEmployeeSettings}
           paymentLedger={paymentLedger}
           setPaymentLedger={setPaymentLedger}
+          worksites={worksites}
+          setWorksites={setWorksites}
         />
       )}
 
