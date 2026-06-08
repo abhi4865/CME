@@ -3003,3 +3003,63 @@ body {
   .photo-grid { grid-template-columns: repeat(2, 1fr); }
   .ws-site-name { font-size: 1rem; }
 }
+
+/* ── Worksite Site-Filter Dropdown ── */
+.site-filter-wrap {
+  margin-left: 1.2rem;
+  border-left: 1px solid var(--border2);
+  padding-left: 1.2rem;
+}
+
+.site-filter-lbl {
+  color: var(--amber);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.site-filter-select {
+  background: #1a1a2e !important;
+  border-color: var(--amber) !important;
+  color: var(--amber) !important;
+  font-weight: 700;
+  min-width: 130px;
+}
+
+.site-filter-select:focus {
+  box-shadow: 0 0 0 2px #f5a62344;
+}
+
+/* ── Worksite pill badge in employee table ── */
+.ws-pill {
+  display: inline-block;
+  padding: 0.18rem 0.65rem;
+  background: #f5a62322;
+  border: 1px solid #f5a62366;
+  border-radius: 20px;
+  color: var(--amber);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Salary cell worksite badge (carried label) ── */
+.worksite-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.worksite-badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  background: #f5a62322;
+  border: 1px dashed #f5a62366;
+  border-radius: 20px;
+  color: #f5a623aa;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  align-self: flex-start;
+}

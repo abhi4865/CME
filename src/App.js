@@ -3,11 +3,11 @@ import './App.css';
 
 // ─── EMPLOYEE DATA ──────────────────────────────────────────────
 const INITIAL_EMPLOYEES = [
-  { id: 1, loginId: 'EMP001', password: 'pass001', name: 'Rajesh Kumar',   role: 'Senior Electrician', email: 'rajesh@cme.com',  department: 'Field Operations' },
-  { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor',    email: 'priya@cme.com',   department: 'Site Management'  },
-  { id: 3, loginId: 'EMP003', password: 'pass003', name: 'Amit Singh',     role: 'Technician',         email: 'amit@cme.com',    department: 'Technical'        },
-  { id: 4, loginId: 'EMP004', password: 'pass004', name: 'Sunita Verma',   role: 'Electrician',        email: 'sunita@cme.com',  department: 'Field Operations' },
-  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Admin Manager', role: 'Administrator',      email: 'admin@cme.com',   department: 'Management'       },
+  { id: 1, loginId: 'EMP001', password: 'pass001', name: 'Rajesh Kumar',   role: 'Senior Electrician', email: 'rajesh@cme.com',  department: 'Field Operations', siteId: 'site_1' },
+  { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor',    email: 'priya@cme.com',   department: 'Site Management',  siteId: 'site_1' },
+  { id: 3, loginId: 'EMP003', password: 'pass003', name: 'Amit Singh',     role: 'Technician',         email: 'amit@cme.com',    department: 'Technical',        siteId: 'site_2' },
+  { id: 4, loginId: 'EMP004', password: 'pass004', name: 'Sunita Verma',   role: 'Electrician',        email: 'sunita@cme.com',  department: 'Field Operations', siteId: 'site_2' },
+  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Admin Manager', role: 'Administrator',      email: 'admin@cme.com',   department: 'Management',       siteId: null    },
 ];
 
 const MONTH_NAMES = [
@@ -533,8 +533,8 @@ function CharacterProfileSection({ employee, characterProfiles, setCharacterProf
 // ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE MANAGER  –  Admin-only CRUD panel
 // ═══════════════════════════════════════════════════════════════
-function EmployeeManager({ employees, setEmployees }) {
-  const BLANK = { name: '', email: '', password: '', loginId: '', department: '', role: '' };
+function EmployeeManager({ employees, setEmployees, worksites }) {
+  const BLANK = { name: '', email: '', password: '', loginId: '', department: '', role: '', siteId: '' };
 
   const [view,         setView]        = useState('list');
   const [editTarget,   setEditTarget]  = useState(null);
@@ -557,6 +557,7 @@ function EmployeeManager({ employees, setEmployees }) {
       loginId:    emp.loginId,
       department: emp.department  || '',
       role:       emp.role,
+      siteId:     emp.siteId      || '',
     });
     setFormErr('');
     setView('edit');
@@ -590,6 +591,7 @@ function EmployeeManager({ employees, setEmployees }) {
       role:       form.role.trim() || 'Electrician',
       email:      form.email.trim(),
       department: form.department.trim(),
+      siteId:     form.siteId || null,
     }]);
     setView('list');
   };
@@ -606,6 +608,7 @@ function EmployeeManager({ employees, setEmployees }) {
         role:       form.role.trim() || e.role,
         email:      form.email.trim(),
         department: form.department.trim(),
+        siteId:     form.siteId || null,
       }
     ));
     setView('list');
@@ -701,6 +704,19 @@ function EmployeeManager({ employees, setEmployees }) {
                 onChange={e => handleFieldChange('role', e.target.value)}
               />
             </div>
+            <div className="field-group">
+              <label className="field-lbl">Assigned Worksite</label>
+              <select
+                className="field-inp"
+                value={form.siteId}
+                onChange={e => handleFieldChange('siteId', e.target.value)}
+              >
+                <option value="">— No site assigned —</option>
+                {(worksites || []).map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {formErr && (
@@ -770,6 +786,7 @@ function EmployeeManager({ employees, setEmployees }) {
               <th>Employee</th>
               <th>Employee ID</th>
               <th>Department</th>
+              <th>Worksite</th>
               <th>Email</th>
               <th style={{ textAlign: 'center' }}>Actions</th>
             </tr>
@@ -777,7 +794,7 @@ function EmployeeManager({ employees, setEmployees }) {
           <tbody>
             {staff.length === 0 ? (
               <tr>
-                <td colSpan={6} className="emp-tbl-empty">
+                <td colSpan={7} className="emp-tbl-empty">
                   No employees registered yet. Click "＋ Add Employee" to get started.
                 </td>
               </tr>
@@ -796,6 +813,12 @@ function EmployeeManager({ employees, setEmployees }) {
                   </td>
                   <td className="emp-tbl-muted">
                     {emp.department || <span className="td-dash">—</span>}
+                  </td>
+                  <td>
+                    {emp.siteId
+                      ? <span className="worksite-badge ws-pill">{(worksites||[]).find(s=>s.id===emp.siteId)?.name || '—'}</span>
+                      : <span className="td-dash">—</span>
+                    }
                   </td>
                   <td className="emp-tbl-muted">
                     {emp.email || <span className="td-dash">—</span>}
@@ -1109,13 +1132,13 @@ function AdminEmployeeProfile({
         {/* Admin / Employee view toggle */}
         <div className="admin-profile-tabs">
           <button
-            className={`admin-profile-tab ${profileTab === 'admin' ? 'admin-profile-tab-on' : ''}`}
-            onClick={() => setProfileTab('admin')}
-          >📋 Admin Profile</button>
-          <button
             className={`admin-profile-tab ${profileTab === 'employee' ? 'admin-profile-tab-on' : ''}`}
             onClick={() => setProfileTab('employee')}
           >👤 Employee View</button>
+          <button
+            className={`admin-profile-tab ${profileTab === 'admin' ? 'admin-profile-tab-on' : ''}`}
+            onClick={() => setProfileTab('admin')}
+          >📋 Admin View</button>
         </div>
         <span className="month-display">{MONTH_NAMES[month]} {year} — {employee.name}</span>
       </div>
@@ -1664,6 +1687,7 @@ function AdminDashboard({
   const [day,           setDay]          = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [activeTab,     setActiveTab]    = useState('attendance');
+  const [siteFilter,    setSiteFilter]   = useState('all');
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -1673,6 +1697,7 @@ function AdminDashboard({
 
   const dateKey        = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   const staff          = employees.filter(e => e.role !== 'Administrator');
+  const filteredStaff  = siteFilter === 'all' ? staff : staff.filter(e => e.siteId === siteFilter);
   const currentDayData = dailyRecords[dateKey] || {};
 
   // ── Inherited salary ────────────────────────────────────────────
@@ -1751,7 +1776,7 @@ function AdminDashboard({
   let absentCount       = 0;
   let totalDailyPayment = 0;
 
-  staff.forEach(emp => {
+  filteredStaff.forEach(emp => {
     const data = currentDayData[emp.id];
     if (data?.status === 'present') presentCount++;
     if (data?.status === 'absent')  absentCount++;
@@ -1835,7 +1860,7 @@ function AdminDashboard({
           <>
             {/* ── STATS STRIP ── */}
             <div className="stats-strip">
-              <StatCard label="Total Staff"   value={staff.length}                                              accentColor="#00BFFF" />
+              <StatCard label="Total Staff"   value={filteredStaff.length}                                      accentColor="#00BFFF" />
               <StatCard label="Present Today" value={presentCount}                                              accentColor="#00C853" />
               <StatCard label="Absent Today"  value={absentCount}                                               accentColor="#FF1744" />
               <StatCard label="Daily Payout"  value={`₹${totalDailyPayment.toLocaleString('en-IN')}`}          accentColor="#F5A623" />
@@ -1883,6 +1908,21 @@ function AdminDashboard({
                   })}
                 </select>
               </div>
+
+              {/* ── Worksite Filter ── */}
+              <div className="day-picker-wrap site-filter-wrap">
+                <label className="day-picker-lbl site-filter-lbl">🏗 Site:</label>
+                <select
+                  className="day-select site-filter-select"
+                  value={siteFilter}
+                  onChange={e => setSiteFilter(e.target.value)}
+                >
+                  <option value="all">All Sites</option>
+                  {worksites.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* ── ADMIN ATTENDANCE TABLE ── */}
@@ -1898,7 +1938,13 @@ function AdminDashboard({
                   </tr>
                 </thead>
                 <tbody>
-                  {staff.map((emp, index) => {
+                  {filteredStaff.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="emp-tbl-empty">
+                        No employees assigned to this site. Assign employees via Manage Employees.
+                      </td>
+                    </tr>
+                  ) : filteredStaff.map((emp, index) => {
                     const record      = currentDayData[emp.id] || { status: null, payment: 0 };
                     const status      = record.status;
                     const isPaymentDisabled  = status !== 'present';
@@ -2013,7 +2059,7 @@ function AdminDashboard({
           TAB: MANAGE EMPLOYEES
           ══════════════════════════════════════════════════════════ */}
       {activeTab === 'employees' && (
-        <EmployeeManager employees={employees} setEmployees={setEmployees} />
+        <EmployeeManager employees={employees} setEmployees={setEmployees} worksites={worksites} />
       )}
 
       {/* ══════════════════════════════════════════════════════════
@@ -2330,7 +2376,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, salaryStr
 //  EMPLOYEE DASHBOARD  –  Personal monthly view (read-only)
 //  Character profile is intentionally absent from this view.
 // ═══════════════════════════════════════════════════════════════
-function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures, employeeSettings, paymentLedger }) {
+function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures, employeeSettings }) {
   const now = new Date();
   const [month,        setMonth]        = useState(now.getMonth());
   const [year]                          = useState(now.getFullYear());
@@ -2402,15 +2448,6 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
         <StatCard label="Working Days"    value={workingDays}                                                   accentColor="#F5A623" />
         <StatCard label="OT Rate"         value={otRate ? `₹${otRate}/hr` : '—'}                               accentColor="#F5A623" />
         <StatCard label="Total Payment"   value={`₹${totalAllPay.toLocaleString('en-IN')}`}                    accentColor="#00BFFF" />
-        <PaidStatusBox
-          empId={employee.id}
-          year={year} month={month}
-          dailyRecords={dailyRecords}
-          employeeSettings={employeeSettings}
-          paymentLedger={paymentLedger || {}}
-          setPaymentLedger={() => {}}
-          isAdmin={false}
-        />
       </div>
 
       {/* ── TAB NAV ── */}
@@ -2578,7 +2615,6 @@ function App() {
           dailyRecords={dailyRecords}
           salaryStructures={salaryStructures}
           employeeSettings={employeeSettings}
-          paymentLedger={paymentLedger}
         />
       )}
     </div>
