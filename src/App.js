@@ -7,7 +7,7 @@ const INITIAL_EMPLOYEES = [
   { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor',    email: 'priya@cme.com',   department: 'Site Management',  siteId: 'site_1' },
   { id: 3, loginId: 'EMP003', password: 'pass003', name: 'Amit Singh',     role: 'Technician',         email: 'amit@cme.com',    department: 'Technical',        siteId: 'site_2' },
   { id: 4, loginId: 'EMP004', password: 'pass004', name: 'Sunita Verma',   role: 'Electrician',        email: 'sunita@cme.com',  department: 'Field Operations', siteId: 'site_2' },
-  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Admin Manager', role: 'Administrator',      email: 'admin@cme.com',   department: 'Management',       siteId: null    },
+  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Main Admin',    role: 'Administrator',      email: 'admin@cme.com',   department: 'Management',       siteId: null    },
 ];
 
 const MONTH_NAMES = [
@@ -628,7 +628,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
     setDeleteTarget(null);
   };
 
-  const staff = employees.filter(e => e.role !== 'Administrator');
+  const staff = employees.filter(e => e.role !== 'Administrator' && e.role !== 'Admin Manager');
 
   // ── Form View ──────────────────────────────────────────────────
   if (view === 'create' || view === 'edit') {
@@ -861,7 +861,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
 //  SALARY DASHBOARD  –  Admin salary structure editor
 // ═══════════════════════════════════════════════════════════════
 function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dailyRecords }) {
-  const staff   = employees.filter(e => e.role !== 'Administrator');
+  const staff   = employees.filter(e => e.role !== 'Administrator' && e.role !== 'Admin Manager');
   const now     = new Date();
   const [selId, setSelId] = useState(staff[0]?.id ?? null);
   const [selMo, setSelMo] = useState(now.getMonth());
@@ -1231,7 +1231,7 @@ function WorksiteDashboard({ worksites, setWorksites, dailyRecords, employees })
   const [deleteTarget,  setDeleteTarget]  = useState(null);
   const fileInputRef = React.useRef(null);
 
-  const staff = employees.filter(e => e.role !== 'Administrator');
+  const staff = employees.filter(e => e.role !== 'Administrator' && e.role !== 'Admin Manager');
 
   // ── Helpers ──────────────────────────────────────────────────
   const getSiteRecords = (siteName) => {
@@ -1679,6 +1679,314 @@ function WorksiteDashboard({ worksites, setWorksites, dailyRecords, employees })
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  ADMIN MANAGER PANEL  –  Main-Admin-only: CRUD for Admin Managers
+//  Admin Managers can do everything an admin can BUT cannot see
+//  or touch this panel.
+// ═══════════════════════════════════════════════════════════════
+function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
+  const BLANK_AM = { name: '', email: '', password: '', loginId: '', department: 'Management' };
+
+  const [amView,        setAmView]        = useState('list');   // 'list' | 'create' | 'edit'
+  const [amEditTarget,  setAmEditTarget]  = useState(null);
+  const [amDeleteTarget,setAmDeleteTarget]= useState(null);
+  const [amForm,        setAmForm]        = useState(BLANK_AM);
+  const [amFormErr,     setAmFormErr]     = useState('');
+
+  // All Admin Manager accounts (role === 'Admin Manager')
+  const managers = employees.filter(e => e.role === 'Admin Manager');
+
+  const openAmCreate = () => {
+    setAmForm({ ...BLANK_AM });
+    setAmFormErr('');
+    setAmView('create');
+  };
+
+  const openAmEdit = mgr => {
+    setAmEditTarget(mgr);
+    setAmForm({
+      name:       mgr.name,
+      email:      mgr.email      || '',
+      password:   mgr.password,
+      loginId:    mgr.loginId,
+      department: mgr.department || 'Management',
+    });
+    setAmFormErr('');
+    setAmView('edit');
+  };
+
+  const cancelAmForm = () => { setAmView('list'); setAmEditTarget(null); setAmFormErr(''); };
+
+  const handleAmFieldChange = (field, val) =>
+    setAmForm(prev => ({ ...prev, [field]: val }));
+
+  const validateAm = () => {
+    if (!amForm.name.trim())     return 'Full name is required.';
+    if (!amForm.loginId.trim())  return 'Manager ID is required.';
+    if (!amForm.password.trim()) return 'Password is required.';
+    const dup = employees.find(e =>
+      e.loginId.toLowerCase() === amForm.loginId.trim().toLowerCase() &&
+      (amView === 'create' || e.id !== amEditTarget?.id)
+    );
+    if (dup) return `ID "${amForm.loginId.trim().toUpperCase()}" is already taken.`;
+    return null;
+  };
+
+  const handleAmCreate = () => {
+    const err = validateAm();
+    if (err) { setAmFormErr(err); return; }
+    setEmployees(prev => [...prev, {
+      id:         Math.max(...prev.map(e => e.id)) + 1,
+      loginId:    amForm.loginId.trim().toUpperCase(),
+      password:   amForm.password.trim(),
+      name:       amForm.name.trim(),
+      role:       'Admin Manager',
+      email:      amForm.email.trim(),
+      department: amForm.department.trim() || 'Management',
+      siteId:     null,
+    }]);
+    setAmView('list');
+  };
+
+  const handleAmSaveEdit = () => {
+    const err = validateAm();
+    if (err) { setAmFormErr(err); return; }
+    setEmployees(prev => prev.map(e =>
+      e.id !== amEditTarget.id ? e : {
+        ...e,
+        loginId:    amForm.loginId.trim().toUpperCase(),
+        password:   amForm.password.trim(),
+        name:       amForm.name.trim(),
+        email:      amForm.email.trim(),
+        department: amForm.department.trim() || 'Management',
+      }
+    ));
+    setAmView('list');
+    setAmEditTarget(null);
+  };
+
+  const doAmDelete = () => {
+    setEmployees(prev => prev.filter(e => e.id !== amDeleteTarget.id));
+    setAmDeleteTarget(null);
+  };
+
+  // ── Form view — only reachable by main admin ──
+  if ((amView === 'create' || amView === 'edit') && isMainAdmin) {
+    const isEdit = amView === 'edit';
+    return (
+      <div className="emp-form-wrap">
+        <div className="emp-form-header">
+          <button className="mtab mtab-on emp-back-btn" onClick={cancelAmForm}>
+            ← Back to Manager List
+          </button>
+          <h2 className="emp-form-title">
+            {isEdit ? '✏ Edit Admin Manager' : '＋ New Admin Manager'}
+          </h2>
+          <p className="emp-form-sub">
+            {isEdit
+              ? `Updating record for ${amEditTarget.name} (${amEditTarget.loginId})`
+              : 'Create an Admin Manager account. They can manage everything except this panel.'}
+          </p>
+        </div>
+
+        <div className="emp-form">
+          <div className="emp-form-grid">
+            <div className="field-group">
+              <label className="field-lbl">Full Name *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. Vikram Nair"
+                value={amForm.name}
+                onChange={e => handleAmFieldChange('name', e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Manager ID *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. MGR001"
+                value={amForm.loginId}
+                onChange={e => handleAmFieldChange('loginId', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Password *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="Set a login password"
+                value={amForm.password}
+                onChange={e => handleAmFieldChange('password', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Email Address</label>
+              <input
+                className="field-inp"
+                type="email"
+                placeholder="e.g. vikram@cme.com"
+                value={amForm.email}
+                onChange={e => handleAmFieldChange('email', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Department</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. Management"
+                value={amForm.department}
+                onChange={e => handleAmFieldChange('department', e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="am-role-note">
+            <span className="am-role-note-icon">🔐</span>
+            <span>
+              Admin Managers have full access to Daily Attendance, Employee Management,
+              Worksite Dashboard and Salary — but <strong>cannot</strong> create, edit,
+              rename or delete other Admin Manager profiles.
+            </span>
+          </div>
+
+          {amFormErr && (
+            <div className="login-error emp-form-err">
+              <span>⚠</span> {amFormErr}
+            </div>
+          )}
+
+          <div className="emp-form-actions">
+            <button className="emp-btn-cancel" onClick={cancelAmForm}>Cancel</button>
+            <button
+              className="login-btn emp-form-submit"
+              onClick={isEdit ? handleAmSaveEdit : handleAmCreate}
+            >
+              {isEdit ? 'Save Changes' : 'Create Manager'}
+              <span className="login-arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── List view ──
+  return (
+    <div className="emp-mgr">
+
+      {/* Delete confirm */}
+      {amDeleteTarget && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="confirm-icon">⚠</div>
+            <h3 className="confirm-title">Delete Admin Manager?</h3>
+            <p className="confirm-msg">
+              You are about to permanently remove{' '}
+              <strong>{amDeleteTarget.name}</strong> ({amDeleteTarget.loginId}).
+              This action cannot be undone.
+            </p>
+            <div className="confirm-actions">
+              <button className="emp-btn-cancel" onClick={() => setAmDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button className="emp-btn-delete-confirm" onClick={doAmDelete}>
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="emp-mgr-header">
+        <div>
+          <h2 className="emp-mgr-title">Admin Manager Directory</h2>
+          <p className="emp-mgr-sub">
+            {managers.length} manager{managers.length !== 1 ? 's' : ''} registered
+            &nbsp;·&nbsp;
+            <span className="am-priv-note">🔐 Visible to Main Admin only</span>
+          </p>
+        </div>
+        {isMainAdmin && (
+          <button className="emp-btn-add" onClick={openAmCreate}>
+            ＋ Add Admin Manager
+          </button>
+        )}
+      </div>
+
+      <div className="tbl-wrap">
+        <table className="att-tbl emp-tbl">
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Manager</th>
+              <th>Manager ID</th>
+              <th>Department</th>
+              <th>Email</th>
+              <th style={{ textAlign: 'center' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {managers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="emp-tbl-empty">
+                  No admin managers yet. Click "＋ Add Admin Manager" to create one.
+                </td>
+              </tr>
+            ) : (
+              managers.map((mgr, idx) => (
+                <tr key={mgr.id} className="trow">
+                  <td className="td-date">{String(idx + 1).padStart(2, '0')}</td>
+                  <td>
+                    <div className="emp-name-cell">
+                      <span className="user-name">{mgr.name}</span>
+                      <span className="emp-role-sub am-role-badge">🔐 Admin Manager</span>
+                    </div>
+                  </td>
+                  <td>
+                    <code className="emp-id-badge am-id-badge">{mgr.loginId}</code>
+                  </td>
+                  <td className="emp-tbl-muted">
+                    {mgr.department || <span className="td-dash">—</span>}
+                  </td>
+                  <td className="emp-tbl-muted">
+                    {mgr.email || <span className="td-dash">—</span>}
+                  </td>
+                  <td>
+                    <div className="action-btns">
+                      {isMainAdmin ? (
+                        <>
+                          <button
+                            className="action-btn action-edit"
+                            onClick={() => openAmEdit(mgr)}
+                          >
+                            ✏ Edit
+                          </button>
+                          <button
+                            className="action-btn action-delete"
+                            onClick={() => setAmDeleteTarget(mgr)}
+                          >
+                            🗑 Delete
+                          </button>
+                        </>
+                      ) : (
+                        <span className="td-dash am-readonly-note">View only</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD  –  Daily roster + Employee Management tabs
 // ═══════════════════════════════════════════════════════════════
 function AdminDashboard({
@@ -1690,6 +1998,7 @@ function AdminDashboard({
   employeeSettings, setEmployeeSettings,
   paymentLedger, setPaymentLedger,
   worksites, setWorksites,
+  isMainAdmin,
 }) {
   const now  = new Date();
   const [year,          setYear]         = useState(now.getFullYear());
@@ -1706,7 +2015,7 @@ function AdminDashboard({
   }, [month, daysInMonth, day]);
 
   const dateKey        = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  const staff          = employees.filter(e => e.role !== 'Administrator');
+  const staff          = employees.filter(e => e.role !== 'Administrator' && e.role !== 'Admin Manager');
   const filteredStaff  = siteFilter === 'all' ? staff : staff.filter(e => e.siteId === siteFilter);
   const currentDayData = dailyRecords[dateKey] || {};
 
@@ -1845,6 +2154,14 @@ function AdminDashboard({
         >
           💰 Salary Dashboard
         </button>
+        {isMainAdmin && (
+          <button
+            className={`admin-nav-tab admin-nav-tab-am ${activeTab === 'adminManagers' ? 'admin-nav-tab-on' : ''}`}
+            onClick={() => { setActiveTab('adminManagers'); setSelectedEmpId(null); }}
+          >
+            🔐 Admin Managers
+          </button>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════════════════════
@@ -2111,6 +2428,17 @@ function AdminDashboard({
           salaryStructures={salaryStructures}
           setSalaryStructures={setSalaryStructures}
           dailyRecords={dailyRecords}
+        />
+      )}
+
+      {/* ════════════════════════════════════════════════════════
+          TAB: ADMIN MANAGERS  —  Main Admin only
+          ════════════════════════════════════════════════════════ */}
+      {activeTab === 'adminManagers' && isMainAdmin && (
+        <AdminManagerPanel
+          employees={employees}
+          setEmployees={setEmployees}
+          isMainAdmin={isMainAdmin}
         />
       )}
 
@@ -2751,11 +3079,16 @@ function App() {
 
   const handleLogout = () => { setUser(null); setErr(''); };
 
+  // Main admin = anyone with role 'Administrator' (the ADMIN account)
+  // Admin Manager = secondary admin, cannot manage other admin managers
+  const isMainAdmin   = user?.role === 'Administrator';
+  const isAdminAccess = user?.role === 'Administrator' || user?.role === 'Admin Manager';
+
   return (
     <div className="App">
       {!user && <LoginPage onLogin={handleLogin} error={err} />}
 
-      {user && user.role === 'Administrator' && (
+      {user && isAdminAccess && (
         <AdminDashboard
           employee={user}
           onLogout={handleLogout}
@@ -2773,11 +3106,12 @@ function App() {
           setPaymentLedger={setPaymentLedger}
           worksites={worksites}
           setWorksites={setWorksites}
+          isMainAdmin={isMainAdmin}
         />
       )}
 
       {/* Character profile is intentionally NOT passed here */}
-      {user && user.role !== 'Administrator' && (
+      {user && !isAdminAccess && (
         <EmployeeDashboard
           employee={user}
           onLogout={handleLogout}
