@@ -1945,14 +1945,14 @@ function AdminDashboard({
                     <th>Employee Name</th>
                     <th>Present / Absent</th>
                     <th>Work Time</th>
-                    <th>Under Time</th>
+                    <th>OT / UT</th>
                     <th>Salary (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredStaff.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="emp-tbl-empty">
+                      <td colSpan={6} className="emp-tbl-empty">
                         No employees assigned to this site. Assign employees via Manage Employees.
                       </td>
                     </tr>
@@ -1998,7 +1998,6 @@ function AdminDashboard({
                         <td>
                           {status === 'present' ? (() => {
                             const stdH = record.standardHours || 8;
-                            const ot   = record.overtimeHours || 0;
                             return (
                               <div className="wt-cell">
                                 <div className="wt-row">
@@ -2022,9 +2021,6 @@ function AdminDashboard({
                                     disabled={false}
                                   />
                                 </div>
-                                {ot > 0 && (
-                                  <span className="ot-badge">⚡ OT: {ot}h</span>
-                                )}
                               </div>
                             );
                           })() : (
@@ -2032,8 +2028,18 @@ function AdminDashboard({
                           )}
                         </td>
                         <td>
-                          {status === 'present' && underTimeHours > 0 ? (
-                            <span className="ut-badge">⏱ {underTimeHours}h</span>
+                          {status === 'present' ? (
+                            <div className="ot-ut-cell">
+                              {(record.overtimeHours || 0) > 0 && (
+                                <span className="ot-badge ot-green">+{record.overtimeHours}h OT</span>
+                              )}
+                              {underTimeHours > 0 && (
+                                <span className="ut-red">-{underTimeHours}h UT</span>
+                              )}
+                              {!(record.overtimeHours || 0) && !underTimeHours && (
+                                <span className="td-dash">—</span>
+                              )}
+                            </div>
                           ) : (
                             <span className="td-dash">—</span>
                           )}
@@ -2322,6 +2328,9 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
   const totalUTPay   = rows.reduce((s, r) => s + r.utPay, 0);
   const totalAllPay  = rows.reduce((s, r) => s + r.totalDaily, 0);
 
+  // Latest paid date mapping for neutralizing previous buttons
+  const latestPaidDateNum = Math.max(0, ...rows.filter(r => r.paidStatus === 'paid').map(r => r.date));
+
   const handleMarkPaid = (dateKey, amount) => {
     if (!setDailyRecords) return;
     setDailyRecords(prev => {
@@ -2382,7 +2391,7 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
             <thead>
               <tr>
                 <th>Date</th><th>Day</th><th>Attendance Status</th>
-                <th>Base Pay (₹)</th><th>Under Time</th><th>Daily Total (₹)</th>
+                <th>Base Pay (₹)</th><th>OT / UT</th><th>Daily Total (₹)</th>
                 <th>Cumulative (₹)</th>
                 {isAdmin && <th>Payment</th>}
               </tr>
@@ -2390,6 +2399,8 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
             <tbody>
               {enriched.map(r => {
                 const payDraft = payInputs[r.dateKey] !== undefined ? payInputs[r.dateKey] : r.totalDaily;
+                const isNeutralized = r.date < latestPaidDateNum && r.paidStatus !== 'paid';
+
                 return (
                   <tr key={r.date} className="trow">
                     <td className="td-date">{String(r.date).padStart(2,'0')}</td>
@@ -2406,14 +2417,16 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
                       </div>
                     </td>
                     <td>
-                      {r.utHours > 0 ? (
-                        <div className="ut-cell">
-                          <span className="ut-badge">⏱ {r.utHours}h</span>
-                          <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
-                        </div>
-                      ) : (
-                        <span className="td-dash">—</span>
-                      )}
+                      <div className="ot-ut-cell">
+                        {r.otHours > 0 && <span className="ot-badge ot-green">+{r.otHours}h OT</span>}
+                        {r.utHours > 0 && (
+                          <div className="ut-cell">
+                            <span className="ut-red">-{r.utHours}h UT</span>
+                            <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
+                          </div>
+                        )}
+                        {r.otHours === 0 && r.utHours === 0 && <span className="td-dash">—</span>}
+                      </div>
                     </td>
                     <td className="td-cum">
                       <div className="total-daily-cell">
@@ -2447,12 +2460,17 @@ function EmployeeProfileEmpView({ employee, month, year, dailyRecords, setDailyR
                                   className="pay-inp pay-inp-sm"
                                   value={payDraft}
                                   onChange={e => setPayInputs(prev => ({ ...prev, [r.dateKey]: e.target.value }))}
+                                  disabled={isNeutralized}
                                 />
                               </div>
-                              <button
-                                className="pay-paid-btn"
-                                onClick={() => handleMarkPaid(r.dateKey, payDraft)}
-                              >✓ Paid</button>
+                              {isNeutralized ? (
+                                <button className="pay-paid-btn pay-paid-btn-neutral" disabled>Neutral</button>
+                              ) : (
+                                <button
+                                  className="pay-paid-btn"
+                                  onClick={() => handleMarkPaid(r.dateKey, payDraft)}
+                                >Pay Now</button>
+                              )}
                             </div>
                           )
                         ) : (
@@ -2623,7 +2641,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
               <th>Day</th>
               <th>Attendance Status</th>
               <th>Base Pay (₹)</th>
-              <th>Under Time</th>
+              <th>OT / UT</th>
               <th>Daily Total (₹)</th>
               <th>Cumulative (₹)</th>
             </tr>
@@ -2649,21 +2667,23 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
                   </div>
                 </td>
                 <td>
-                  {r.utHours > 0 ? (
-                    <div className="ut-cell">
-                      <span className="ut-badge">⏱ {r.utHours}h</span>
-                      <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
-                    </div>
-                  ) : (
-                    <span className="td-dash">—</span>
-                  )}
+                  <div className="ot-ut-cell">
+                    {r.otHours > 0 && <span className="ot-badge ot-green">+{r.otHours}h OT</span>}
+                    {r.utHours > 0 && (
+                      <div className="ut-cell">
+                        <span className="ut-red">-{r.utHours}h UT</span>
+                        <span className="ut-deduct">−₹{r.utPay.toLocaleString('en-IN')}</span>
+                      </div>
+                    )}
+                    {r.otHours === 0 && r.utHours === 0 && <span className="td-dash">—</span>}
+                  </div>
                 </td>
                 <td className="td-cum">
                   <div className="total-daily-cell">
                     <span className="total-daily-amt">₹{r.totalDaily.toLocaleString('en-IN')}</span>
                     {r.otHours > 0 && (
                       <span className="total-daily-sub">
-                        +{r.otHours}h OT × ₹{otRate}
+                        +{r.otHours}h OT × ₹{otRate} = ₹{r.otPay.toLocaleString('en-IN')}
                       </span>
                     )}
                   </div>

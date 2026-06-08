@@ -606,7 +606,6 @@ body {
   width: 60px;
 }
 
-
 /* Employee name cell */
 .emp-name-cell {
   display: flex;
@@ -2171,7 +2170,7 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
-   WORK TIME & OVERTIME
+   WORK TIME & OT / UT BADGES
    ════════════════════════════════════════════════════════════════ */
 
 .wt-cell {
@@ -2230,20 +2229,59 @@ body {
   padding: 0 1px;
 }
 
+.ot-ut-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
 .ot-badge {
   display: inline-flex;
   align-items: center;
   font-family: var(--mono);
   font-size: 0.62rem;
   font-weight: 700;
-  color: var(--amber);
-  background: var(--amber-dim);
-  border: 1px solid rgba(245,166,35,0.22);
   border-radius: 4px;
   padding: 2px 7px;
   white-space: nowrap;
   letter-spacing: 0.5px;
   align-self: flex-start;
+  border: 1px solid transparent;
+}
+
+.ot-green {
+  color: #00E676 !important;
+  background: rgba(0, 230, 118, 0.15) !important;
+  border-color: rgba(0, 230, 118, 0.3) !important;
+}
+
+.ut-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ut-red {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  align-self: flex-start;
+  border: 1px solid transparent;
+  color: #FF1744 !important;
+  background: rgba(255, 23, 68, 0.15) !important;
+  border-color: rgba(255, 23, 68, 0.3) !important;
+}
+
+.ut-deduct {
+  color: var(--red);
+  font-size: 0.65rem;
+  font-weight: 600;
 }
 
 /* OT Rate field in AdminEmployeeProfile profile-card */
@@ -2287,6 +2325,57 @@ body {
   font-family: var(--mono);
   white-space: nowrap;
   letter-spacing: 0.2px;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PAYMENT ACTION ROW STYLING (RED vs NEUTRAL)
+   ════════════════════════════════════════════════════════════════ */
+
+.pay-action-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pay-inp-sm {
+  width: 80px;
+  padding: 0.3rem 0.5rem;
+}
+
+.pay-paid-btn {
+  background: var(--red);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: filter 0.15s;
+  white-space: nowrap;
+}
+
+.pay-paid-btn:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.pay-paid-btn-neutral {
+  background: var(--border2);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.paid-row-badge {
+  display: inline-block;
+  padding: 0.3rem 0.6rem;
+  background: rgba(0, 200, 83, 0.15);
+  border: 1px dashed #00C853;
+  border-radius: 6px;
+  color: #00C853;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -3062,93 +3151,4 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   align-self: flex-start;
-}
-
-/* ── Under Time badge (admin daily table + employee rows) ── */
-.ut-badge {
-  display: inline-block;
-  padding: 0.15rem 0.55rem;
-  background: #ff174422;
-  border: 1px solid #ff174466;
-  border-radius: 20px;
-  color: #ff6b6b;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  font-family: var(--mono);
-}
-
-.ut-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  align-items: flex-start;
-}
-
-.ut-deduct {
-  font-size: 0.7rem;
-  color: #ff6b6baa;
-  font-family: var(--mono);
-}
-
-/* ── Cumulative cell ── */
-.cum-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.cum-negative {
-  color: #ff6b6b !important;
-}
-
-.cum-paid-sub {
-  font-size: 0.68rem;
-  color: #00C853aa;
-  font-family: var(--mono);
-}
-
-/* ── Per-row payment action (admin only) ── */
-.pay-action-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-start;
-}
-
-.pay-inp-sm {
-  width: 70px !important;
-}
-
-.pay-paid-btn {
-  padding: 0.2rem 0.65rem;
-  background: #00C85322;
-  border: 1px solid #00C85366;
-  border-radius: 6px;
-  color: #00C853;
-  font-size: 0.72rem;
-  font-weight: 700;
-  cursor: pointer;
-  letter-spacing: 0.04em;
-  transition: background 0.15s;
-}
-.pay-paid-btn:hover {
-  background: #00C85344;
-}
-
-.paid-row-badge {
-  display: inline-block;
-  padding: 0.2rem 0.6rem;
-  background: #00C85322;
-  border: 1px solid #00C85366;
-  border-radius: 12px;
-  color: #00C853;
-  font-size: 0.7rem;
-  font-weight: 700;
-  font-family: var(--mono);
-  white-space: nowrap;
-}
-
-.tfoot-ut {
-  color: #ff6b6b;
 }
