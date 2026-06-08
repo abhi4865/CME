@@ -209,15 +209,14 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
 // ═══════════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD  –  Daily roster for all employees
 // ═══════════════════════════════════════════════════════════════
-function AdminDashboard({ employee, onLogout }) {
+function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   const now  = new Date();
   const [year,  setYear]  = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [day,   setDay]           = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
 
-  // dailyRecords: { "YYYY-MM-DD": { empId: { present, payment } } }
-  const [dailyRecords, setDailyRecords] = useState({});
+  // dailyRecords is now lifted to App and passed in as a prop
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -557,16 +556,30 @@ function AdminDashboard({ employee, onLogout }) {
 // ═══════════════════════════════════════════════════════════════
 //  EMPLOYEE DASHBOARD  –  Personal monthly view (read-only)
 // ═══════════════════════════════════════════════════════════════
-function EmployeeDashboard({ employee, onLogout }) {
+function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth());
   const [year]            = useState(now.getFullYear());
-  const [rows,  setRows]  = useState(() => buildMonthRecords(now.getFullYear(), now.getMonth()));
 
-  const changeMonth = m => {
-    setMonth(m);
-    setRows(buildMonthRecords(year, m));
-  };
+  // Derive rows directly from the shared dailyRecords (same source as admin)
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rows = Array.from({ length: daysInMonth }, (_, i) => {
+    const dayNum    = i + 1;
+    const d         = new Date(year, month, dayNum);
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    const dateKey   = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    const record    = dailyRecords[dateKey]?.[employee.id];
+    return {
+      date:     dayNum,
+      dayName:  DAY_NAMES[d.getDay()],
+      isWeekend,
+      status:   record?.status ?? null,   // 'present' | 'absent' | null (not yet marked)
+      payment:  record?.status === 'present' ? (record?.payment || 0) : 0,
+      worksite: record?.worksite || '',
+    };
+  });
+
+  const changeMonth = m => setMonth(m);
 
   let runningTotal = 0;
   const enriched = rows.map(r => {
@@ -575,8 +588,8 @@ function EmployeeDashboard({ employee, onLogout }) {
   });
 
   const workingDays  = rows.filter(r => !r.isWeekend).length;
-  const presentCount = rows.filter(r => !r.isWeekend && r.present).length;
-  const absentCount  = rows.filter(r => !r.isWeekend && !r.present).length;
+  const presentCount = rows.filter(r => !r.isWeekend && r.status === 'present').length;
+  const absentCount  = rows.filter(r => !r.isWeekend && r.status === 'absent').length;
   const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
 
   return (
@@ -636,6 +649,7 @@ function EmployeeDashboard({ employee, onLogout }) {
               <th>Date</th>
               <th>Day</th>
               <th>Attendance Status</th>
+              <th>Worksite</th>
               <th>Payment (₹)</th>
               <th>Monthly Cumulative (₹)</th>
             </tr>
@@ -650,13 +664,22 @@ function EmployeeDashboard({ employee, onLogout }) {
                 <td>
                   {r.isWeekend ? (
                     <span className="badge-off">OFF</span>
+                  ) : r.status === 'present' ? (
+                    <span className="badge-off att-present" style={{ padding: '0.4rem 1rem' }}>Present</span>
+                  ) : r.status === 'absent' ? (
+                    <span className="badge-off att-absent" style={{ padding: '0.4rem 1rem' }}>Absent</span>
                   ) : (
-                    <span
-                      className={`badge-off ${r.present ? 'att-present' : 'att-absent'}`}
-                      style={{ padding: '0.4rem 1rem' }}
-                    >
-                      {r.present ? 'Present' : 'Absent'}
-                    </span>
+                    <span className="badge-off att-pending" style={{ padding: '0.4rem 1rem' }}>Not Marked</span>
+                  )}
+                </td>
+
+                <td>
+                  {r.isWeekend ? (
+                    <span className="td-dash">—</span>
+                  ) : r.worksite ? (
+                    <span className="worksite-label">{r.worksite}</span>
+                  ) : (
+                    <span className="td-dash">—</span>
                   )}
                 </td>
 
@@ -666,7 +689,7 @@ function EmployeeDashboard({ employee, onLogout }) {
                   ) : (
                     <div className="pay-cell">
                       <span className="rupee">₹</span>
-                      <span className="cum-amt">{r.payment}</span>
+                      <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
                     </div>
                   )}
                 </td>
@@ -684,7 +707,7 @@ function EmployeeDashboard({ employee, onLogout }) {
           </tbody>
           <tfoot>
             <tr className="tfoot-row">
-              <td colSpan={3} className="tfoot-lbl">MONTHLY TOTAL</td>
+              <td colSpan={4} className="tfoot-lbl">MONTHLY TOTAL</td>
               <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
               <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
             </tr>
@@ -700,8 +723,10 @@ function EmployeeDashboard({ employee, onLogout }) {
 //  ROOT APP
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  const [user, setUser] = useState(null);
-  const [err,  setErr]  = useState('');
+  const [user,         setUser]         = useState(null);
+  const [err,          setErr]          = useState('');
+  // ── Shared attendance state – single source of truth for both dashboards ──
+  const [dailyRecords, setDailyRecords] = useState({});
 
   const handleLogin = (id, pwd) => {
     const emp = EMPLOYEES.find(e =>
@@ -717,10 +742,19 @@ function App() {
     <div className="App">
       {!user && <LoginPage onLogin={handleLogin} error={err} />}
       {user && user.role === 'Administrator' && (
-        <AdminDashboard employee={user} onLogout={handleLogout} />
+        <AdminDashboard
+          employee={user}
+          onLogout={handleLogout}
+          dailyRecords={dailyRecords}
+          setDailyRecords={setDailyRecords}
+        />
       )}
       {user && user.role !== 'Administrator' && (
-        <EmployeeDashboard employee={user} onLogout={handleLogout} />
+        <EmployeeDashboard
+          employee={user}
+          onLogout={handleLogout}
+          dailyRecords={dailyRecords}
+        />
       )}
     </div>
   );
