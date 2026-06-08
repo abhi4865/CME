@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 // ─── EMPLOYEE DATA ──────────────────────────────────────────────
-const EMPLOYEES = [
-  { id: 1, loginId: 'EMP001', password: 'pass001', name: 'Rajesh Kumar',   role: 'Senior Electrician' },
-  { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor'    },
-  { id: 3, loginId: 'EMP003', password: 'pass003', name: 'Amit Singh',     role: 'Technician'         },
-  { id: 4, loginId: 'EMP004', password: 'pass004', name: 'Sunita Verma',   role: 'Electrician'        },
-  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Admin Manager', role: 'Administrator'      },
+// Moved to INITIAL_EMPLOYEES so App can manage it as state (enables CRUD)
+const INITIAL_EMPLOYEES = [
+  { id: 1, loginId: 'EMP001', password: 'pass001', name: 'Rajesh Kumar',   role: 'Senior Electrician', email: 'rajesh@cme.com',  department: 'Field Operations' },
+  { id: 2, loginId: 'EMP002', password: 'pass002', name: 'Priya Sharma',   role: 'Site Supervisor',    email: 'priya@cme.com',   department: 'Site Management'  },
+  { id: 3, loginId: 'EMP003', password: 'pass003', name: 'Amit Singh',     role: 'Technician',         email: 'amit@cme.com',    department: 'Technical'        },
+  { id: 4, loginId: 'EMP004', password: 'pass004', name: 'Sunita Verma',   role: 'Electrician',        email: 'sunita@cme.com',  department: 'Field Operations' },
+  { id: 5, loginId: 'ADMIN',  password: 'admin123', name: 'Admin Manager', role: 'Administrator',      email: 'admin@cme.com',   department: 'Management'       },
 ];
 
 const MONTH_NAMES = [
@@ -147,6 +148,316 @@ function StatCard({ label, value, accentColor }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  EMPLOYEE MANAGER  –  Admin-only CRUD panel
+//  Features: View all · Create · Edit · Delete (with confirmation)
+// ═══════════════════════════════════════════════════════════════
+function EmployeeManager({ employees, setEmployees }) {
+  const BLANK = { name: '', email: '', password: '', loginId: '', department: '', role: '' };
+
+  const [view,          setView]         = useState('list');   // 'list' | 'create' | 'edit'
+  const [editTarget,    setEditTarget]   = useState(null);
+  const [deleteTarget,  setDeleteTarget] = useState(null);
+  const [form,          setForm]         = useState(BLANK);
+  const [formErr,       setFormErr]      = useState('');
+
+  // ── Open helpers ──────────────────────────────────────────────
+  const openCreate = () => {
+    setForm({ ...BLANK, role: 'Electrician' });
+    setFormErr('');
+    setView('create');
+  };
+
+  const openEdit = emp => {
+    setEditTarget(emp);
+    setForm({
+      name:       emp.name,
+      email:      emp.email       || '',
+      password:   emp.password,
+      loginId:    emp.loginId,
+      department: emp.department  || '',
+      role:       emp.role,
+    });
+    setFormErr('');
+    setView('edit');
+  };
+
+  const cancelForm = () => { setView('list'); setEditTarget(null); setFormErr(''); };
+
+  const handleFieldChange = (field, val) =>
+    setForm(prev => ({ ...prev, [field]: val }));
+
+  // ── Validation ────────────────────────────────────────────────
+  const validate = () => {
+    if (!form.name.trim())     return 'Full name is required.';
+    if (!form.loginId.trim())  return 'Employee ID is required.';
+    if (!form.password.trim()) return 'Password is required.';
+    const dup = employees.find(e =>
+      e.loginId.toLowerCase() === form.loginId.trim().toLowerCase() &&
+      (view === 'create' || e.id !== editTarget?.id)
+    );
+    if (dup) return `Employee ID "${form.loginId.trim().toUpperCase()}" is already taken.`;
+    return null;
+  };
+
+  // ── Create ────────────────────────────────────────────────────
+  const handleCreate = () => {
+    const err = validate();
+    if (err) { setFormErr(err); return; }
+    setEmployees(prev => [...prev, {
+      id:         Math.max(...prev.map(e => e.id)) + 1,
+      loginId:    form.loginId.trim().toUpperCase(),
+      password:   form.password.trim(),
+      name:       form.name.trim(),
+      role:       form.role.trim() || 'Electrician',
+      email:      form.email.trim(),
+      department: form.department.trim(),
+    }]);
+    setView('list');
+  };
+
+  // ── Save Edit ─────────────────────────────────────────────────
+  const handleSaveEdit = () => {
+    const err = validate();
+    if (err) { setFormErr(err); return; }
+    setEmployees(prev => prev.map(e =>
+      e.id !== editTarget.id ? e : {
+        ...e,
+        loginId:    form.loginId.trim().toUpperCase(),
+        password:   form.password.trim(),
+        name:       form.name.trim(),
+        role:       form.role.trim() || e.role,
+        email:      form.email.trim(),
+        department: form.department.trim(),
+      }
+    ));
+    setView('list');
+    setEditTarget(null);
+  };
+
+  // ── Delete ────────────────────────────────────────────────────
+  const doDelete = () => {
+    setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
+    setDeleteTarget(null);
+  };
+
+  // Non-admin staff only
+  const staff = employees.filter(e => e.role !== 'Administrator');
+
+  // ════════════════════════════════════════════════════════════
+  //  FORM VIEW  (shared for Create and Edit)
+  // ════════════════════════════════════════════════════════════
+  if (view === 'create' || view === 'edit') {
+    const isEdit = view === 'edit';
+    return (
+      <div className="emp-form-wrap">
+        <div className="emp-form-header">
+          <button className="mtab mtab-on emp-back-btn" onClick={cancelForm}>
+            ← Back to Directory
+          </button>
+          <h2 className="emp-form-title">
+            {isEdit ? '✏ Edit Employee' : '＋ New Employee'}
+          </h2>
+          <p className="emp-form-sub">
+            {isEdit
+              ? `Updating record for ${editTarget.name} (${editTarget.loginId})`
+              : 'Fill in the details below to create a new employee account.'}
+          </p>
+        </div>
+
+        <div className="emp-form">
+          <div className="emp-form-grid">
+            <div className="field-group">
+              <label className="field-lbl">Full Name *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. Ravi Prasad"
+                value={form.name}
+                onChange={e => handleFieldChange('name', e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Employee ID *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. EMP005"
+                value={form.loginId}
+                onChange={e => handleFieldChange('loginId', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Password *</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="Set a login password"
+                value={form.password}
+                onChange={e => handleFieldChange('password', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Email Address</label>
+              <input
+                className="field-inp"
+                type="email"
+                placeholder="e.g. ravi@cme.com"
+                value={form.email}
+                onChange={e => handleFieldChange('email', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Department</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. Field Operations"
+                value={form.department}
+                onChange={e => handleFieldChange('department', e.target.value)}
+              />
+            </div>
+            <div className="field-group">
+              <label className="field-lbl">Role / Designation</label>
+              <input
+                className="field-inp"
+                type="text"
+                placeholder="e.g. Senior Electrician"
+                value={form.role}
+                onChange={e => handleFieldChange('role', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {formErr && (
+            <div className="login-error emp-form-err">
+              <span>⚠</span> {formErr}
+            </div>
+          )}
+
+          <div className="emp-form-actions">
+            <button className="emp-btn-cancel" onClick={cancelForm}>Cancel</button>
+            <button
+              className="login-btn emp-form-submit"
+              onClick={isEdit ? handleSaveEdit : handleCreate}
+            >
+              {isEdit ? 'Save Changes' : 'Create Employee'}
+              <span className="login-arrow">→</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════
+  //  LIST VIEW
+  // ════════════════════════════════════════════════════════════
+  return (
+    <div className="emp-mgr">
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className="modal-overlay">
+          <div className="confirm-modal">
+            <div className="confirm-icon">⚠</div>
+            <h3 className="confirm-title">Delete Employee?</h3>
+            <p className="confirm-msg">
+              You are about to permanently remove{' '}
+              <strong>{deleteTarget.name}</strong> ({deleteTarget.loginId}).
+              This action cannot be undone.
+            </p>
+            <div className="confirm-actions">
+              <button className="emp-btn-cancel" onClick={() => setDeleteTarget(null)}>
+                Cancel
+              </button>
+              <button className="emp-btn-delete-confirm" onClick={doDelete}>
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Panel Header ── */}
+      <div className="emp-mgr-header">
+        <div>
+          <h2 className="emp-mgr-title">Employee Directory</h2>
+          <p className="emp-mgr-sub">
+            {staff.length} employee{staff.length !== 1 ? 's' : ''} registered
+          </p>
+        </div>
+        <button className="emp-btn-add" onClick={openCreate}>
+          ＋ Add Employee
+        </button>
+      </div>
+
+      {/* ── Directory Table ── */}
+      <div className="tbl-wrap">
+        <table className="att-tbl emp-tbl">
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Employee</th>
+              <th>Employee ID</th>
+              <th>Department</th>
+              <th>Email</th>
+              <th style={{ textAlign: 'center' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="emp-tbl-empty">
+                  No employees registered yet. Click "＋ Add Employee" to get started.
+                </td>
+              </tr>
+            ) : (
+              staff.map((emp, idx) => (
+                <tr key={emp.id} className="trow">
+                  <td className="td-date">{String(idx + 1).padStart(2, '0')}</td>
+                  <td>
+                    <div className="emp-name-cell">
+                      <span className="user-name">{emp.name}</span>
+                      <span className="emp-role-sub">{emp.role}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <code className="emp-id-badge">{emp.loginId}</code>
+                  </td>
+                  <td className="emp-tbl-muted">
+                    {emp.department || <span className="td-dash">—</span>}
+                  </td>
+                  <td className="emp-tbl-muted">
+                    {emp.email || <span className="td-dash">—</span>}
+                  </td>
+                  <td>
+                    <div className="action-btns">
+                      <button
+                        className="action-btn action-edit"
+                        onClick={() => openEdit(emp)}
+                      >
+                        ✏ Edit
+                      </button>
+                      <button
+                        className="action-btn action-delete"
+                        onClick={() => setDeleteTarget(emp)}
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ADMIN EMPLOYEE PROFILE
 //  Calculates monthly totals from the shared dailyRecords state
 // ═══════════════════════════════════════════════════════════════
@@ -200,16 +511,16 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ADMIN DASHBOARD  –  Daily roster for all employees
+//  ADMIN DASHBOARD  –  Daily roster + Employee Management tabs
 // ═══════════════════════════════════════════════════════════════
-function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
+function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords, employees, setEmployees }) {
   const now  = new Date();
-  const [year,  setYear]  = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
-  const [day,   setDay]           = useState(now.getDate());
+  const [year,         setYear]         = useState(now.getFullYear());
+  const [month,        setMonth]        = useState(now.getMonth());
+  const [day,          setDay]          = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
-
-  // dailyRecords is now lifted to App and passed in as a prop
+  // ── New: tab navigation (admin-only, completely hidden from employees) ──
+  const [activeTab,    setActiveTab]    = useState('attendance'); // 'attendance' | 'employees'
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -218,8 +529,9 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
     if (day > daysInMonth) setDay(daysInMonth);
   }, [month, daysInMonth, day]);
 
-  const dateKey      = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  const staff        = EMPLOYEES.filter(e => e.role !== 'Administrator');
+  const dateKey        = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  // Use employees prop (state) instead of the old EMPLOYEES constant
+  const staff          = employees.filter(e => e.role !== 'Administrator');
   const currentDayData = dailyRecords[dateKey] || {};
 
   // ── Inherited worksite ──────────────────────────────────────────
@@ -305,8 +617,8 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
   };
 
   // ── Daily Totals for Stats Strip ──
-  let presentCount = 0;
-  let absentCount  = 0;
+  let presentCount      = 0;
+  let absentCount       = 0;
   let totalDailyPayment = 0;
 
   staff.forEach(emp => {
@@ -342,173 +654,201 @@ function AdminDashboard({ employee, onLogout, dailyRecords, setDailyRecords }) {
         </div>
       </header>
 
-      {/* ── Conditionally render Profile OR Daily Table ── */}
-      {selectedEmployee ? (
-        <AdminEmployeeProfile
-          employee={selectedEmployee}
-          month={month}
-          year={year}
-          dailyRecords={dailyRecords}
-          onBack={() => setSelectedEmpId(null)}
-        />
-      ) : (
-        <>
-          {/* ── STATS STRIP ── */}
-          <div className="stats-strip">
-            <StatCard label="Total Staff"   value={staff.length}                                              accentColor="#00BFFF" />
-            <StatCard label="Present Today" value={presentCount}                                              accentColor="#00C853" />
-            <StatCard label="Absent Today"  value={absentCount}                                               accentColor="#FF1744" />
-            <StatCard label="Daily Payout"  value={`₹${totalDailyPayment.toLocaleString('en-IN')}`}          accentColor="#F5A623" />
-          </div>
+      {/* ── ADMIN NAVIGATION TABS (visible to Administrator only) ── */}
+      <div className="admin-nav">
+        <button
+          className={`admin-nav-tab ${activeTab === 'attendance' ? 'admin-nav-tab-on' : ''}`}
+          onClick={() => { setActiveTab('attendance'); setSelectedEmpId(null); }}
+        >
+          📋 Daily Attendance
+        </button>
+        <button
+          className={`admin-nav-tab ${activeTab === 'employees' ? 'admin-nav-tab-on' : ''}`}
+          onClick={() => setActiveTab('employees')}
+        >
+          👥 Manage Employees
+        </button>
+      </div>
 
-          {/* ── DATE PICKER BAR ── */}
-          <div className="month-bar">
-            <span className="month-bar-lbl">Daily Marking</span>
-
-            <div className="month-tabs">
-              {MONTH_NAMES.map((m, i) => (
-                <button
-                  key={i}
-                  className={`mtab ${month === i ? 'mtab-on' : ''}`}
-                  onClick={() => setMonth(i)}
-                >
-                  {m.slice(0, 3)}
-                </button>
-              ))}
+      {/* ══════════════════════════════════════════════════════════
+          TAB: DAILY ATTENDANCE  (existing functionality, unchanged)
+          ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'attendance' && (
+        selectedEmployee ? (
+          <AdminEmployeeProfile
+            employee={selectedEmployee}
+            month={month}
+            year={year}
+            dailyRecords={dailyRecords}
+            onBack={() => setSelectedEmpId(null)}
+          />
+        ) : (
+          <>
+            {/* ── STATS STRIP ── */}
+            <div className="stats-strip">
+              <StatCard label="Total Staff"   value={staff.length}                                              accentColor="#00BFFF" />
+              <StatCard label="Present Today" value={presentCount}                                              accentColor="#00C853" />
+              <StatCard label="Absent Today"  value={absentCount}                                               accentColor="#FF1744" />
+              <StatCard label="Daily Payout"  value={`₹${totalDailyPayment.toLocaleString('en-IN')}`}          accentColor="#F5A623" />
             </div>
 
-            <div className="day-picker-wrap">
-              <label className="day-picker-lbl">Date:</label>
-              <select
-                className="day-select"
-                value={day}
-                onChange={e => setDay(Number(e.target.value))}
-              >
-                {Array.from({ length: daysInMonth }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1} {MONTH_NAMES[month]}
-                  </option>
+            {/* ── DATE PICKER BAR ── */}
+            <div className="month-bar">
+              <span className="month-bar-lbl">Daily Marking</span>
+
+              <div className="month-tabs">
+                {MONTH_NAMES.map((m, i) => (
+                  <button
+                    key={i}
+                    className={`mtab ${month === i ? 'mtab-on' : ''}`}
+                    onClick={() => setMonth(i)}
+                  >
+                    {m.slice(0, 3)}
+                  </button>
                 ))}
-              </select>
+              </div>
 
-              <label className="day-picker-lbl">Year:</label>
-              <select
-                className="day-select"
-                value={year}
-                onChange={e => setYear(Number(e.target.value))}
-              >
-                {Array.from({ length: 6 }, (_, i) => {
-                  const y = now.getFullYear() - 2 + i;
-                  return <option key={y} value={y}>{y}</option>;
-                })}
-              </select>
+              <div className="day-picker-wrap">
+                <label className="day-picker-lbl">Date:</label>
+                <select
+                  className="day-select"
+                  value={day}
+                  onChange={e => setDay(Number(e.target.value))}
+                >
+                  {Array.from({ length: daysInMonth }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1} {MONTH_NAMES[month]}
+                    </option>
+                  ))}
+                </select>
+
+                <label className="day-picker-lbl">Year:</label>
+                <select
+                  className="day-select"
+                  value={year}
+                  onChange={e => setYear(Number(e.target.value))}
+                >
+                  {Array.from({ length: 6 }, (_, i) => {
+                    const y = now.getFullYear() - 2 + i;
+                    return <option key={y} value={y}>{y}</option>;
+                  })}
+                </select>
+              </div>
             </div>
-          </div>
 
-          {/* ── ADMIN ATTENDANCE TABLE ── */}
-          <div className="tbl-wrap">
-            <table className="att-tbl">
-              <thead>
-                <tr>
-                  <th>S.No</th>
-                  <th>Employee Name</th>
-                  <th>Present / Absent</th>
-                  <th>Worksite</th>
-                  <th>Salary (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staff.map((emp, index) => {
-                  const record      = currentDayData[emp.id] || { status: null, payment: 0 };
-                  const status      = record.status;
-                  const worksiteVal = record.worksiteSet
-                    ? record.worksite
-                    : getInheritedWorksite(emp.id);
-                  const isInherited = !record.worksiteSet && worksiteVal !== '';
+            {/* ── ADMIN ATTENDANCE TABLE ── */}
+            <div className="tbl-wrap">
+              <table className="att-tbl">
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>Employee Name</th>
+                    <th>Present / Absent</th>
+                    <th>Worksite</th>
+                    <th>Salary (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staff.map((emp, index) => {
+                    const record      = currentDayData[emp.id] || { status: null, payment: 0 };
+                    const status      = record.status;
+                    const worksiteVal = record.worksiteSet
+                      ? record.worksite
+                      : getInheritedWorksite(emp.id);
+                    const isInherited = !record.worksiteSet && worksiteVal !== '';
 
-                  const isPaymentDisabled  = status !== 'present';
-                  const displayPayment     = isPaymentDisabled ? 0 : record.payment;
-                  const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
+                    const isPaymentDisabled  = status !== 'present';
+                    const displayPayment     = isPaymentDisabled ? 0 : record.payment;
+                    const isSalaryInherited  = status === 'present' && !record.paymentSet && record.payment > 0;
 
-                  return (
-                    <tr key={emp.id} className="trow">
-                      <td className="td-date">{String(index + 1).padStart(2, '0')}</td>
-                      <td>
-                        <div className="emp-name-cell">
-                          <span
-                            className="user-name emp-name-link"
-                            onClick={() => setSelectedEmpId(emp.id)}
-                            title={`View ${emp.name}'s monthly profile`}
-                          >
-                            {emp.name}
-                          </span>
-                          <span className="emp-role-sub">{emp.role} · {emp.loginId}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <button
-                          className={`att-btn ${
-                            status === 'present' ? 'att-present'
-                            : status === 'absent' ? 'att-absent'
-                            : 'att-mark'
-                          }`}
-                          onClick={() => cycleStatus(emp.id)}
-                        >
-                          {status === 'present' ? '● PRESENT'
-                           : status === 'absent'  ? '● ABSENT'
-                           : '○ MARK'}
-                        </button>
-                      </td>
-                      <td>
-                        <div className="worksite-cell">
-                          <input
-                            className={`worksite-inp${isInherited ? ' worksite-inherited' : ''}`}
-                            type="text"
-                            placeholder="e.g. Site A, Delhi"
-                            value={worksiteVal}
-                            title={isInherited ? 'Carried over from a previous date — type to change from this date onward' : ''}
-                            onChange={e => setWorksite(emp.id, e.target.value)}
-                          />
-                          {isInherited && <span className="worksite-badge">carried</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="worksite-cell">
-                          <div className="pay-cell">
-                            <span className="rupee">₹</span>
-                            <input
-                              className={"pay-inp" + (isSalaryInherited ? " pay-inherited" : "")}
-                              type="number"
-                              min="0"
-                              value={displayPayment}
-                              disabled={isPaymentDisabled}
-                              title={
-                                isPaymentDisabled
-                                  ? (status === "absent" ? "Absent — salary is ₹0" : "Mark attendance first")
-                                  : (isSalaryInherited ? "Auto-filled from previous salary — type to override" : "")
-                              }
-                              onChange={e => setPayment(emp.id, e.target.value)}
-                            />
+                    return (
+                      <tr key={emp.id} className="trow">
+                        <td className="td-date">{String(index + 1).padStart(2, '0')}</td>
+                        <td>
+                          <div className="emp-name-cell">
+                            <span
+                              className="user-name emp-name-link"
+                              onClick={() => setSelectedEmpId(emp.id)}
+                              title={`View ${emp.name}'s monthly profile`}
+                            >
+                              {emp.name}
+                            </span>
+                            <span className="emp-role-sub">{emp.role} · {emp.loginId}</span>
                           </div>
-                          {isSalaryInherited && <span className="worksite-badge">carried</span>}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="tfoot-row">
-                  <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
-                    DAILY TOTAL
-                  </td>
-                  <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </>
+                        </td>
+                        <td>
+                          <button
+                            className={`att-btn ${
+                              status === 'present' ? 'att-present'
+                              : status === 'absent' ? 'att-absent'
+                              : 'att-mark'
+                            }`}
+                            onClick={() => cycleStatus(emp.id)}
+                          >
+                            {status === 'present' ? '● PRESENT'
+                             : status === 'absent'  ? '● ABSENT'
+                             : '○ MARK'}
+                          </button>
+                        </td>
+                        <td>
+                          <div className="worksite-cell">
+                            <input
+                              className={`worksite-inp${isInherited ? ' worksite-inherited' : ''}`}
+                              type="text"
+                              placeholder="e.g. Site A, Delhi"
+                              value={worksiteVal}
+                              title={isInherited ? 'Carried over from a previous date — type to change from this date onward' : ''}
+                              onChange={e => setWorksite(emp.id, e.target.value)}
+                            />
+                            {isInherited && <span className="worksite-badge">carried</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="worksite-cell">
+                            <div className="pay-cell">
+                              <span className="rupee">₹</span>
+                              <input
+                                className={"pay-inp" + (isSalaryInherited ? " pay-inherited" : "")}
+                                type="number"
+                                min="0"
+                                value={displayPayment}
+                                disabled={isPaymentDisabled}
+                                title={
+                                  isPaymentDisabled
+                                    ? (status === "absent" ? "Absent — salary is ₹0" : "Mark attendance first")
+                                    : (isSalaryInherited ? "Auto-filled from previous salary — type to override" : "")
+                                }
+                                onChange={e => setPayment(emp.id, e.target.value)}
+                              />
+                            </div>
+                            {isSalaryInherited && <span className="worksite-badge">carried</span>}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="tfoot-row">
+                    <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
+                      DAILY TOTAL
+                    </td>
+                    <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </>
+        )
       )}
+
+      {/* ══════════════════════════════════════════════════════════
+          TAB: MANAGE EMPLOYEES  (new — admin-only CRUD panel)
+          ══════════════════════════════════════════════════════════ */}
+      {activeTab === 'employees' && (
+        <EmployeeManager employees={employees} setEmployees={setEmployees} />
+      )}
+
     </div>
   );
 }
@@ -662,12 +1002,15 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
 //  ROOT APP
 // ═══════════════════════════════════════════════════════════════
 function App() {
+  // employees is now state so the admin can create / edit / delete
+  const [employees,    setEmployees]    = useState(INITIAL_EMPLOYEES);
   const [user,         setUser]         = useState(null);
   const [err,          setErr]          = useState('');
   const [dailyRecords, setDailyRecords] = useState({});
 
   const handleLogin = (id, pwd) => {
-    const emp = EMPLOYEES.find(e =>
+    // Always check the live employees state (picks up newly created accounts)
+    const emp = employees.find(e =>
       e.loginId.toLowerCase() === id.toLowerCase() && e.password === pwd
     );
     if (emp) { setUser(emp); setErr(''); }
@@ -679,14 +1022,20 @@ function App() {
   return (
     <div className="App">
       {!user && <LoginPage onLogin={handleLogin} error={err} />}
+
+      {/* Administrator sees the full dashboard including Manage Employees tab */}
       {user && user.role === 'Administrator' && (
         <AdminDashboard
           employee={user}
           onLogout={handleLogout}
           dailyRecords={dailyRecords}
           setDailyRecords={setDailyRecords}
+          employees={employees}
+          setEmployees={setEmployees}
         />
       )}
+
+      {/* Regular employees only see their own read-only attendance view */}
       {user && user.role !== 'Administrator' && (
         <EmployeeDashboard
           employee={user}

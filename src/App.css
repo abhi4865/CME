@@ -973,6 +973,379 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   ADMIN NAVIGATION TABS
+   Only rendered inside AdminDashboard — never visible to employees
+   ════════════════════════════════════════════════════════════════ */
+
+.admin-nav {
+  background: var(--surf);
+  border-bottom: 2px solid var(--border2);
+  padding: 0 2rem;
+  display: flex;
+  gap: 0;
+  position: sticky;
+  top: 62px;          /* sit just below the sticky dash-header */
+  z-index: 40;
+}
+
+.admin-nav-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.9rem 1.6rem;
+  color: var(--text-sub);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.2s, border-color 0.2s;
+  margin-bottom: -2px;   /* overlap the border-bottom of .admin-nav */
+  white-space: nowrap;
+}
+
+.admin-nav-tab:hover { color: var(--text); }
+
+.admin-nav-tab-on {
+  color: var(--amber) !important;
+  border-bottom-color: var(--amber);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEE MANAGER  (Create · View · Edit · Delete)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Panel container ── */
+.emp-mgr {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Panel header row ── */
+.emp-mgr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.emp-mgr-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.emp-mgr-sub {
+  font-size: 0.7rem;
+  color: var(--text-sub);
+  margin-top: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+/* ── "＋ Add Employee" button ── */
+.emp-btn-add {
+  background: linear-gradient(135deg, var(--amber) 0%, #E8850A 100%);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.65rem 1.3rem;
+  color: #000;
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.emp-btn-add:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(245,166,35,0.35);
+}
+
+.emp-btn-add:active { transform: translateY(0); }
+
+/* ── Directory table extras ── */
+.emp-tbl { min-width: 680px; }
+
+.emp-tbl-muted {
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.emp-tbl-empty {
+  text-align: center;
+  padding: 3.5rem 1rem !important;
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* Employee ID mono badge in the table */
+.emp-id-badge {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: var(--amber-dim);
+  border: 1px solid rgba(245,166,35,0.2);
+  border-radius: 5px;
+  padding: 0.18rem 0.6rem;
+  color: var(--amber);
+  letter-spacing: 1.5px;
+}
+
+/* ── Edit / Delete action buttons ── */
+.action-btns {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn {
+  border-radius: 7px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  border: 1.5px solid transparent;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+.action-edit {
+  background: rgba(245,166,35,0.08);
+  border-color: rgba(245,166,35,0.28);
+  color: var(--amber);
+}
+
+.action-edit:hover {
+  background: rgba(245,166,35,0.18);
+  border-color: var(--amber);
+  box-shadow: 0 0 10px rgba(245,166,35,0.18);
+}
+
+.action-delete {
+  background: rgba(255,23,68,0.08);
+  border-color: rgba(255,23,68,0.25);
+  color: var(--red);
+}
+
+.action-delete:hover {
+  background: rgba(255,23,68,0.18);
+  border-color: var(--red);
+  box-shadow: 0 0 10px rgba(255,23,68,0.2);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEE FORM  (Create & Edit — shared layout)
+   ════════════════════════════════════════════════════════════════ */
+
+.emp-form-wrap {
+  padding: 2rem 2rem 3rem;
+  max-width: 900px;
+}
+
+.emp-form-header {
+  margin-bottom: 1.8rem;
+}
+
+.emp-back-btn {
+  margin-bottom: 1.2rem !important;
+  display: inline-flex !important;
+}
+
+.emp-form-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin-bottom: 0.3rem;
+}
+
+.emp-form-sub {
+  font-size: 0.78rem;
+  color: var(--text-sub);
+  line-height: 1.5;
+}
+
+/* Card wrapping the form fields */
+.emp-form {
+  background: var(--surf);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 2rem 2rem 1.8rem;
+  position: relative;
+}
+
+/* Amber top accent line */
+.emp-form::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--amber) 30%, transparent);
+  border-radius: 14px 14px 0 0;
+}
+
+/* 2-column grid of field-groups */
+.emp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem 1.6rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Error banner inside the form */
+.emp-form-err {
+  margin-top: 0.8rem;
+  margin-bottom: 0;
+}
+
+/* Bottom action row */
+.emp-form-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1.6rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Override login-btn margin when used inside the form */
+.emp-form-submit {
+  margin-top: 0 !important;
+  min-width: 190px;
+}
+
+/* Cancel / secondary button */
+.emp-btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0.75rem 1.4rem;
+  color: var(--text-sub);
+  font-size: 0.88rem;
+  font-family: var(--sans);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.emp-btn-cancel:hover {
+  border-color: var(--text-sub);
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   DELETE CONFIRMATION MODAL
+   ════════════════════════════════════════════════════════════════ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9,11,16,0.88);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: fadeIn 0.2s ease;
+}
+
+.confirm-modal {
+  background: var(--surf);
+  border: 1px solid var(--red-bdr);
+  border-radius: 18px;
+  padding: 2.6rem 2.4rem 2.2rem;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  box-shadow:
+    0 0 0 1px rgba(255,23,68,0.1),
+    0 32px 80px rgba(0,0,0,0.75);
+  animation: fadeIn 0.2s ease;
+}
+
+/* Red top accent line */
+.confirm-modal::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--red), transparent);
+  border-radius: 99px;
+}
+
+.confirm-icon {
+  font-size: 2.6rem;
+  margin-bottom: 0.9rem;
+  color: var(--red);
+  filter: drop-shadow(0 0 14px rgba(255,23,68,0.55));
+  line-height: 1;
+}
+
+.confirm-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
+  margin-bottom: 0.7rem;
+}
+
+.confirm-msg {
+  font-size: 0.85rem;
+  color: var(--text-sub);
+  line-height: 1.65;
+  margin-bottom: 2rem;
+}
+
+.confirm-msg strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+}
+
+/* Red destructive confirm button */
+.emp-btn-delete-confirm {
+  background: var(--red);
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.78rem 1.6rem;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-family: var(--sans);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.emp-btn-delete-confirm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(255,23,68,0.38);
+}
+
+.emp-btn-delete-confirm:active { transform: translateY(0); }
+
+/* ════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════ */
 
@@ -982,17 +1355,26 @@ body {
 }
 
 @media (max-width: 700px) {
-  .dash-header { padding: 0.75rem 1rem; }
-  .hdr-full    { display: none; }
-  .user-info   { display: none; }
-  .tbl-wrap    { padding: 1rem; }
-  .month-bar   { padding: 0.7rem 1rem; gap: 0.7rem; }
+  .dash-header  { padding: 0.75rem 1rem; }
+  .hdr-full     { display: none; }
+  .user-info    { display: none; }
+  .tbl-wrap     { padding: 1rem; }
+  .month-bar    { padding: 0.7rem 1rem; gap: 0.7rem; }
   .month-bar-lbl { display: none; }
   .profile-card { margin: 1rem; }
+  /* Employee form drops to 1 column on mobile */
+  .emp-form-grid  { grid-template-columns: 1fr; }
+  .emp-form-wrap  { padding: 1.2rem 1rem 2rem; }
+  .emp-mgr-header { padding: 1rem; }
+  .admin-nav      { padding: 0 1rem; }
+  .confirm-modal  { padding: 2rem 1.5rem 1.8rem; }
 }
 
 @media (max-width: 500px) {
-  .stats-strip  { grid-template-columns: repeat(2, 1fr); }
-  .login-card   { padding: 2rem 1.5rem; }
-  .stat-val     { font-size: 1.3rem; }
+  .stats-strip { grid-template-columns: repeat(2, 1fr); }
+  .login-card  { padding: 2rem 1.5rem; }
+  .stat-val    { font-size: 1.3rem; }
+  .emp-form-actions { flex-direction: column; }
+  .emp-form-submit  { width: 100%; justify-content: center; }
+  .emp-btn-cancel   { width: 100%; text-align: center; }
 }
