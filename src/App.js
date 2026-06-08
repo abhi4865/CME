@@ -230,6 +230,27 @@ function AdminDashboard({ employee, onLogout }) {
   const staff        = EMPLOYEES.filter(e => e.role !== 'Administrator');
   const currentDayData = dailyRecords[dateKey] || {};
 
+  // ── Inherited worksite ──────────────────────────────────────────
+  // Walk backwards from the current date (inclusive) and return the
+  // most recent worksite that was explicitly set for this employee.
+  const getInheritedWorksite = (empId) => {
+    for (let d = day; d >= 1; d--) {
+      const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.worksiteSet) return rec.worksite;  // explicitly set on day d
+    }
+    // Also check earlier months/years by scanning all keys in sorted order
+    const allKeys = Object.keys(dailyRecords).sort();
+    const cutoff  = dateKey;
+    for (let i = allKeys.length - 1; i >= 0; i--) {
+      const k = allKeys[i];
+      if (k >= cutoff) continue;                  // skip same-or-future dates
+      const rec = dailyRecords[k]?.[empId];
+      if (rec?.worksiteSet) return rec.worksite;
+    }
+    return '';
+  };
+
   // ── Mutations ──
   // 3-state cycle: null (MARK) → 'present' → 'absent' → null
   const cycleStatus = empId => {
@@ -248,6 +269,16 @@ function AdminDashboard({ employee, onLogout }) {
     setDailyRecords(prev => ({
       ...prev,
       [dateKey]: { ...prev[dateKey], [empId]: { ...empData, payment: Math.max(0, parseInt(val) || 0) } },
+    }));
+  };
+
+  // worksiteSet flag marks that admin explicitly typed a value on this date.
+  // This is what getInheritedWorksite looks for when walking backwards.
+  const setWorksite = (empId, val) => {
+    const empData = currentDayData[empId] || { status: null, payment: 0 };
+    setDailyRecords(prev => ({
+      ...prev,
+      [dateKey]: { ...prev[dateKey], [empId]: { ...empData, worksite: val, worksiteSet: true } },
     }));
   };
 
@@ -361,13 +392,20 @@ function AdminDashboard({ employee, onLogout }) {
                   <th>S.No</th>
                   <th>Employee Name</th>
                   <th>Present / Absent</th>
+                  <th>Worksite</th>
                   <th>Salary (₹)</th>
                 </tr>
               </thead>
               <tbody>
                 {staff.map((emp, index) => {
-                  const record = currentDayData[emp.id] || { status: null, payment: 0 };
-                  const status = record.status; // null | 'present' | 'absent'
+                  const record      = currentDayData[emp.id] || { status: null, payment: 0 };
+                  const status      = record.status;
+                  // Show the worksite that was set on this day; if none, inherit the
+                  // most recently set value from any earlier date.
+                  const worksiteVal = record.worksiteSet
+                    ? record.worksite
+                    : getInheritedWorksite(emp.id);
+                  const isInherited = !record.worksiteSet && worksiteVal !== '';
                   return (
                     <tr key={emp.id} className="trow">
 
@@ -404,6 +442,21 @@ function AdminDashboard({ employee, onLogout }) {
                         </button>
                       </td>
 
+                      {/* Worksite – inherited from last set date; typing overrides for this date */}
+                      <td>
+                        <div className="worksite-cell">
+                          <input
+                            className={`worksite-inp${isInherited ? ' worksite-inherited' : ''}`}
+                            type="text"
+                            placeholder="e.g. Site A, Delhi"
+                            value={worksiteVal}
+                            title={isInherited ? 'Carried over from a previous date — type to change from this date onward' : ''}
+                            onChange={e => setWorksite(emp.id, e.target.value)}
+                          />
+                          {isInherited && <span className="worksite-badge">carried</span>}
+                        </div>
+                      </td>
+
                       {/* Salary Input */}
                       <td>
                         <div className="pay-cell">
@@ -424,7 +477,7 @@ function AdminDashboard({ employee, onLogout }) {
               </tbody>
               <tfoot>
                 <tr className="tfoot-row">
-                  <td colSpan={3} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
+                  <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
                     DAILY TOTAL
                   </td>
                   <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>

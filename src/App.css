@@ -676,6 +676,20 @@ body {
   box-shadow: 0 0 12px rgba(255,23,68,0.2);
 }
 
+/* Default unset state — neutral amber */
+.att-mark {
+  background: var(--amber-dim);
+  border: 1px dashed rgba(245,166,35,0.35);
+  color: rgba(245,166,35,0.65);
+  letter-spacing: 1px;
+}
+.att-mark:hover {
+  background: var(--amber-glow);
+  border-color: var(--amber);
+  color: var(--amber);
+  box-shadow: 0 0 10px rgba(245,166,35,0.18);
+}
+
 .badge-off {
   background: rgba(245,166,35,0.07);
   border: 1px solid rgba(245,166,35,0.18);
@@ -722,6 +736,65 @@ body {
 .pay-inp::-webkit-inner-spin-button,
 .pay-inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .pay-inp[type=number] { -moz-appearance: textfield; }
+
+/* Worksite text input */
+.worksite-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.worksite-inp {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  padding: 0.35rem 0.7rem;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-family: var(--sans);
+  width: 150px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.worksite-inp::placeholder {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.worksite-inp:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+/* Inherited / carried-over state — subtle amber dashed border */
+.worksite-inp.worksite-inherited {
+  border-style: dashed;
+  border-color: rgba(245,166,35,0.35);
+  color: var(--text-sub);
+}
+
+.worksite-inp.worksite-inherited:focus {
+  border-style: solid;
+  border-color: var(--amber);
+  color: var(--text);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+/* Small "carried" pill badge shown next to inherited inputs */
+.worksite-badge {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(245,166,35,0.55);
+  background: rgba(245,166,35,0.07);
+  border: 1px solid rgba(245,166,35,0.2);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 .td-dash {
   color: var(--text-dim);
