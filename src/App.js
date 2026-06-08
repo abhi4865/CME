@@ -236,6 +236,195 @@ function StarRating({ value, onChange, color = 'var(--amber)' }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  SALARY REFERENCE SECTION
+//  Per-day OT · Special Payment · Deduction panel
+//  Admin: editable   |   Employee: read-only
+// ═══════════════════════════════════════════════════════════════
+function SalaryRefSection({ isAdmin, record, onUpdate, onClear, isPresent }) {
+  const r        = record || {};
+  const otHours  = Number(r.otHours   || 0);
+  const otRate   = Number(r.otRate    || 0);
+  const specNote = r.specialNote  || '';
+  const specAmt  = Number(r.specialAmt  || 0);
+  const dedNote  = r.deductNote   || '';
+  const dedAmt   = Number(r.deductAmt   || 0);
+  const basic    = Number(r.payment    || 0);
+
+  const otAmt      = otHours * otRate;
+  const finalTotal = basic + otAmt + specAmt - dedAmt;
+
+  const hasOT      = otHours > 0 || otRate > 0;
+  const hasSpecial = specNote !== '' || specAmt > 0;
+  const hasDeduct  = dedNote  !== '' || dedAmt  > 0;
+
+  if (!isPresent) {
+    return <span className="sref-empty">—</span>;
+  }
+
+  /* ── EMPLOYEE READ-ONLY VIEW ── */
+  if (!isAdmin) {
+    return (
+      <div className="sref-view">
+        {otAmt > 0 && (
+          <div className="sref-view-row">
+            <span className="sref-view-label">⏱ OT</span>
+            <span className="sref-view-detail">{otHours}h × ₹{otRate.toLocaleString('en-IN')}</span>
+            <span className="sref-view-amt sref-plus">+₹{otAmt.toLocaleString('en-IN')}</span>
+          </div>
+        )}
+        {specAmt > 0 && (
+          <div className="sref-view-row">
+            <span className="sref-view-label">💫</span>
+            <span className="sref-view-detail">{specNote || 'Special Payment'}</span>
+            <span className="sref-view-amt sref-plus">+₹{specAmt.toLocaleString('en-IN')}</span>
+          </div>
+        )}
+        {dedAmt > 0 && (
+          <div className="sref-view-row">
+            <span className="sref-view-label">📉</span>
+            <span className="sref-view-detail">{dedNote || 'Deduction'}</span>
+            <span className="sref-view-amt sref-minus">−₹{dedAmt.toLocaleString('en-IN')}</span>
+          </div>
+        )}
+        <div className="sref-final">
+          <span className="sref-final-lbl">DAILY TOTAL</span>
+          <span className="sref-final-amt">₹{finalTotal.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── ADMIN EDITABLE VIEW ── */
+  return (
+    <div className="sref-edit">
+
+      {/* ── OT Section ── */}
+      <div className="sref-section sref-ot">
+        <div className="sref-section-hdr">
+          <span>⏱ OVERTIME</span>
+          {hasOT && (
+            <button
+              className="sref-clear-btn"
+              onClick={() => onClear({ otHours: 0, otRate: 0 })}
+              title="Clear OT"
+            >✕</button>
+          )}
+        </div>
+        <div className="sref-row">
+          <div className="sref-field">
+            <label className="sref-lbl">OT Hrs</label>
+            <input
+              className="sref-inp sref-inp-sm"
+              type="number" min="0" step="0.5"
+              value={otHours || ''}
+              placeholder="0"
+              onChange={e => onUpdate('otHours', e.target.value)}
+            />
+          </div>
+          <div className="sref-field">
+            <label className="sref-lbl">₹/hr</label>
+            <input
+              className="sref-inp sref-inp-sm"
+              type="number" min="0"
+              value={otRate || ''}
+              placeholder="0"
+              onChange={e => onUpdate('otRate', e.target.value)}
+            />
+          </div>
+          <div className="sref-field">
+            <label className="sref-lbl">Amt</label>
+            <span className="sref-calc-val sref-plus">₹{otAmt.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Special Payment ── */}
+      <div className="sref-section sref-special">
+        <div className="sref-section-hdr">
+          <span>💫 SPECIAL PAYMENT</span>
+          {hasSpecial && (
+            <button
+              className="sref-clear-btn"
+              onClick={() => onClear({ specialNote: '', specialAmt: 0 })}
+              title="Clear special payment"
+            >✕</button>
+          )}
+        </div>
+        <div className="sref-row">
+          <input
+            className="sref-inp sref-inp-wide"
+            type="text"
+            value={specNote}
+            placeholder="Reason (e.g. Festival Bonus)"
+            onChange={e => onUpdate('specialNote', e.target.value)}
+          />
+          <div className="sref-field">
+            <span className="sref-lbl">₹</span>
+            <input
+              className="sref-inp sref-inp-sm"
+              type="number" min="0"
+              value={specAmt || ''}
+              placeholder="0"
+              onChange={e => onUpdate('specialAmt', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Deduction ── */}
+      <div className="sref-section sref-deduct">
+        <div className="sref-section-hdr">
+          <span>📉 DEDUCTION</span>
+          {hasDeduct && (
+            <button
+              className="sref-clear-btn sref-clear-red"
+              onClick={() => onClear({ deductNote: '', deductAmt: 0 })}
+              title="Clear deduction"
+            >✕</button>
+          )}
+        </div>
+        <div className="sref-row">
+          <input
+            className="sref-inp sref-inp-wide"
+            type="text"
+            value={dedNote}
+            placeholder="Reason (e.g. Late arrival)"
+            onChange={e => onUpdate('deductNote', e.target.value)}
+          />
+          <div className="sref-field">
+            <span className="sref-lbl">₹</span>
+            <input
+              className="sref-inp sref-inp-sm"
+              type="number" min="0"
+              value={dedAmt || ''}
+              placeholder="0"
+              onChange={e => onUpdate('deductAmt', e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Final Total ── */}
+      <div className="sref-final">
+        {(otAmt > 0 || specAmt > 0 || dedAmt > 0) && (
+          <div className="sref-formula">
+            <span className="sref-formula-part">₹{basic.toLocaleString('en-IN')}</span>
+            {otAmt   > 0 && <span className="sref-formula-part sref-plus">+₹{otAmt.toLocaleString('en-IN')}</span>}
+            {specAmt > 0 && <span className="sref-formula-part sref-plus">+₹{specAmt.toLocaleString('en-IN')}</span>}
+            {dedAmt  > 0 && <span className="sref-formula-part sref-minus">−₹{dedAmt.toLocaleString('en-IN')}</span>}
+          </div>
+        )}
+        <div className="sref-final-row">
+          <span className="sref-final-lbl">DAILY TOTAL</span>
+          <span className="sref-final-amt">₹{finalTotal.toLocaleString('en-IN')}</span>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  CHARACTER PROFILE SECTION  —  Admin-only, never shown to employees
 // ═══════════════════════════════════════════════════════════════
 // ─── SALARY HELPERS & DEFAULTS ─────────────────────────────────
@@ -1144,6 +1333,27 @@ function AdminDashboard({
     }));
   };
 
+  // ── Salary Reference updater ────────────────────────────────
+  const updateSalaryRef = (empId, updates) => {
+    setDailyRecords(prev => {
+      const empData = (prev[dateKey] || {})[empId] || { status: null, payment: 0 };
+      const numericFields = ['otHours', 'otRate', 'specialAmt', 'deductAmt'];
+      const processed = {};
+      Object.entries(updates).forEach(([field, val]) => {
+        processed[field] = numericFields.includes(field)
+          ? Math.max(0, parseFloat(val) || 0)
+          : val;
+      });
+      return {
+        ...prev,
+        [dateKey]: {
+          ...prev[dateKey],
+          [empId]: { ...empData, ...processed },
+        },
+      };
+    });
+  };
+
   // ── Daily totals ──
   let presentCount      = 0;
   let absentCount       = 0;
@@ -1153,7 +1363,12 @@ function AdminDashboard({
     const data = currentDayData[emp.id];
     if (data?.status === 'present') presentCount++;
     if (data?.status === 'absent')  absentCount++;
-    if (data?.payment)              totalDailyPayment += data.payment;
+    if (data?.status === 'present' && data?.payment) {
+      const otAmt = (Number(data.otHours) || 0) * (Number(data.otRate) || 0);
+      const sAmt  = Number(data.specialAmt) || 0;
+      const dAmt  = Number(data.deductAmt)  || 0;
+      totalDailyPayment += data.payment + otAmt + sAmt - dAmt;
+    }
   });
 
   const selectedEmployee = staff.find(e => e.id === selectedEmpId);
@@ -1282,6 +1497,7 @@ function AdminDashboard({
                     <th>Present / Absent</th>
                     <th>Worksite</th>
                     <th>Salary (₹)</th>
+                    <th>Salary Reference</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1359,13 +1575,22 @@ function AdminDashboard({
                             {isSalaryInherited && <span className="worksite-badge">carried</span>}
                           </div>
                         </td>
+                        <td className="td-sref">
+                          <SalaryRefSection
+                            isAdmin={true}
+                            record={record}
+                            onUpdate={(field, val) => updateSalaryRef(emp.id, { [field]: val })}
+                            onClear={(fields)       => updateSalaryRef(emp.id, fields)}
+                            isPresent={status === 'present'}
+                          />
+                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
                 <tfoot>
                   <tr className="tfoot-row">
-                    <td colSpan={4} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
+                    <td colSpan={5} className="tfoot-lbl" style={{ textAlign: 'right', paddingRight: '2rem' }}>
                       DAILY TOTAL
                     </td>
                     <td className="tfoot-amt">₹{totalDailyPayment.toLocaleString('en-IN')}</td>
@@ -1524,25 +1749,35 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures 
     const d       = new Date(year, month, dayNum);
     const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
     const record  = dailyRecords[dateKey]?.[employee.id];
+    const isPresent = record?.status === 'present';
     return {
-      date:     dayNum,
-      dayName:  DAY_NAMES[d.getDay()],
-      status:   record?.status ?? null,
-      payment:  record?.status === 'present' ? (record?.payment || 0) : 0,
-      worksite: record?.worksite || '',
+      date:       dayNum,
+      dayName:    DAY_NAMES[d.getDay()],
+      status:     record?.status ?? null,
+      payment:    isPresent ? (record?.payment || 0) : 0,
+      worksite:   record?.worksite || '',
+      otHours:    isPresent ? Number(record?.otHours   || 0) : 0,
+      otRate:     isPresent ? Number(record?.otRate    || 0) : 0,
+      specialNote: record?.specialNote || '',
+      specialAmt: isPresent ? Number(record?.specialAmt || 0) : 0,
+      deductNote:  record?.deductNote  || '',
+      deductAmt:  isPresent ? Number(record?.deductAmt  || 0) : 0,
+      _record:    record,
     };
   });
 
   let runningTotal = 0;
   const enriched = rows.map(r => {
-    runningTotal += r.payment;
-    return { ...r, cumulative: runningTotal };
+    const otAmt   = r.otHours * r.otRate;
+    const finalPay = r.payment + otAmt + r.specialAmt - r.deductAmt;
+    runningTotal += finalPay;
+    return { ...r, otAmt, finalPay, cumulative: runningTotal };
   });
 
   const workingDays  = rows.length;
   const presentCount = rows.filter(r => r.status === 'present').length;
   const absentCount  = rows.filter(r => r.status === 'absent').length;
-  const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
+  const totalPayment = enriched.reduce((s, r) => s + r.finalPay, 0);
 
   return (
     <div className="dashboard">
@@ -1627,6 +1862,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures 
               <th>Attendance Status</th>
               <th>Worksite</th>
               <th>Payment (₹)</th>
+              <th>Salary Reference</th>
               <th>Monthly Cumulative (₹)</th>
             </tr>
           </thead>
@@ -1657,6 +1893,13 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures 
                     <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
                   </div>
                 </td>
+                <td className="td-sref">
+                  <SalaryRefSection
+                    isAdmin={false}
+                    record={r._record}
+                    isPresent={r.status === 'present'}
+                  />
+                </td>
                 <td className="td-cum">
                   <span className="cum-amt">₹{r.cumulative.toLocaleString('en-IN')}</span>
                 </td>
@@ -1666,7 +1909,8 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures 
           <tfoot>
             <tr className="tfoot-row">
               <td colSpan={4} className="tfoot-lbl">MONTHLY TOTAL</td>
-              <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
+              <td className="tfoot-amt">₹{rows.reduce((s, r) => s + r.payment, 0).toLocaleString('en-IN')}</td>
+              <td></td>
               <td className="tfoot-amt">₹{totalPayment.toLocaleString('en-IN')}</td>
             </tr>
           </tfoot>

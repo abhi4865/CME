@@ -2238,6 +2238,261 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════════════
+   SALARY REFERENCE SECTION
+   Per-day OT · Special Payment · Deduction
+   ════════════════════════════════════════════════════════════════ */
+
+.td-sref {
+  min-width: 310px;
+  padding: 0.5rem 0.75rem !important;
+  vertical-align: top !important;
+}
+
+.sref-empty {
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  display: block;
+  text-align: center;
+  padding: 0.4rem 0;
+}
+
+/* ── ADMIN EDITABLE CONTAINER ── */
+.sref-edit {
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 288px;
+}
+
+/* ── SECTION BLOCKS ── */
+.sref-section {
+  padding: 0.5rem 0.75rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sref-section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.38rem;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 1.6px;
+  font-weight: 700;
+}
+
+.sref-ot      .sref-section-hdr { color: var(--blue); }
+.sref-special .sref-section-hdr { color: var(--green); }
+.sref-deduct  .sref-section-hdr { color: var(--red); }
+
+.sref-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sref-field {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.sref-lbl {
+  font-size: 0.6rem;
+  color: var(--text-sub);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* ── INPUTS ── */
+.sref-inp {
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-radius: 5px;
+  padding: 0.24rem 0.48rem;
+  color: var(--text);
+  font-size: 0.74rem;
+  font-family: var(--mono);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.sref-inp:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px var(--amber-glow);
+}
+
+.sref-inp::placeholder {
+  color: var(--text-dim);
+  font-size: 0.67rem;
+}
+
+.sref-inp::-webkit-inner-spin-button,
+.sref-inp::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.sref-inp[type=number] { appearance: textfield; -moz-appearance: textfield; }
+
+.sref-inp-sm   { width: 64px; }
+.sref-inp-wide {
+  flex: 1;
+  min-width: 118px;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+}
+
+/* ── CALCULATED VALUE ── */
+.sref-calc-val {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  min-width: 56px;
+}
+
+/* ── CLEAR BUTTONS (× icon) ── */
+.sref-clear-btn {
+  background: transparent;
+  border: 1px solid rgba(245,166,35,0.28);
+  border-radius: 4px;
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  color: var(--text-sub);
+  font-size: 0.58rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.sref-clear-btn:hover {
+  background: var(--amber-glow);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.sref-clear-red {
+  border-color: rgba(255,23,68,0.28);
+}
+
+.sref-clear-red:hover {
+  background: var(--red-bg);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ── FINAL TOTAL BLOCK ── */
+.sref-final {
+  background: rgba(245,166,35,0.04);
+  border-top: 1px solid rgba(245,166,35,0.18);
+  padding: 0.48rem 0.75rem 0.52rem;
+}
+
+.sref-formula {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 0.3rem;
+  opacity: 0.75;
+}
+
+.sref-formula-part {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+.sref-final-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sref-final-lbl {
+  font-family: var(--mono);
+  font-size: 0.57rem;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: var(--amber);
+  font-weight: 700;
+}
+
+.sref-final-amt {
+  font-family: var(--mono);
+  font-size: 0.96rem;
+  color: var(--amber);
+  font-weight: 700;
+  text-shadow: 0 0 12px rgba(245,166,35,0.38);
+  letter-spacing: 0.5px;
+}
+
+/* ── COLOUR HELPERS ── */
+.sref-plus  { color: var(--green) !important; }
+.sref-minus { color: var(--red)   !important; }
+
+/* ── EMPLOYEE READ-ONLY VIEW ── */
+.sref-view {
+  background: var(--surf2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  overflow: hidden;
+  min-width: 210px;
+}
+
+.sref-view-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.32rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.sref-view-label {
+  font-size: 0.63rem;
+  font-family: var(--mono);
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sref-view-detail {
+  font-size: 0.68rem;
+  color: var(--text-sub);
+  flex: 1;
+  font-family: var(--sans);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sref-view-amt {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.sref-view .sref-final {
+  background: rgba(245,166,35,0.04);
+  border-top: 1px solid rgba(245,166,35,0.18);
+}
+
+/* ════════════════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════════════════ */
 
