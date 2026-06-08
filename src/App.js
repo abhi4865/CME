@@ -363,10 +363,13 @@ const DEFAULT_DEDUCTIONS = [
 ];
 function initSalaryStructure() {
   return {
-    dailyRate:  500,
-    allowances: DEFAULT_ALLOWANCES.map(a => ({ ...a })),
-    deductions: DEFAULT_DEDUCTIONS.map(d => ({ ...d })),
-    increment:  { type: 'fixed', value: 0 },
+    dailyRate:    500,
+    allowances:   DEFAULT_ALLOWANCES.map(a => ({ ...a })),
+    deductions:   DEFAULT_DEDUCTIONS.map(d => ({ ...d })),
+    increment:    { type: 'fixed', value: 0 },
+    upiId:        '',
+    receipt:      null,
+    paymentMarks: {},
   };
 }
 function getEmpSalary(structs, empId) {
@@ -928,6 +931,32 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
   const setIncrType    = t      => upd(s => ({ ...s, increment: {...s.increment, type:t} }));
   const setIncrVal     = v      => upd(s => ({ ...s, increment: {...s.increment, value:Math.max(0,Number(v)||0)} }));
 
+  // ── UPI / Receipt / Payment Mark ──
+  const setUpiId   = v  => upd(s => ({ ...s, upiId: v }));
+  const delUpiId   = () => upd(s => ({ ...s, upiId: '' }));
+  const setReceipt = r  => upd(s => ({ ...s, receipt: r }));
+  const delReceipt = () => upd(s => ({ ...s, receipt: null }));
+  const monthKey   = `${selYear}-${selMo}`;
+  const alreadyPaid = !!(struct?.paymentMarks?.[monthKey]?.paid);
+  const markPaid = () => {
+    if (alreadyPaid) return;
+    upd(s => ({
+      ...s,
+      paymentMarks: {
+        ...(s.paymentMarks || {}),
+        [monthKey]: { paid: true, timestamp: new Date().toISOString() },
+      },
+    }));
+  };
+  const handleReceiptUpload = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert('File too large. Please upload under 2 MB.'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setReceipt({ name: file.name, data: ev.target.result, type: file.type, uploadedAt: new Date().toISOString() });
+    reader.readAsDataURL(file);
+  };
+
   if (!staff.length) return (
     <div className="salary-empty">
       <span className="salary-empty-icon">💰</span>
@@ -1121,6 +1150,79 @@ function SalaryDashboard({ employees, salaryStructures, setSalaryStructures, dai
                 </span>
               </div>
 
+            </div>
+          </div>
+
+          {/* ─── PAYMENT CONFIRMATION SECTION ─── */}
+          <div className="pay-confirm-section">
+            <div className="pay-confirm-hdr">
+              <span className="pay-confirm-title">💳 Payment Details</span>
+              <span className="pay-confirm-sub">UPI · Receipt · Salary Confirmation</span>
+            </div>
+
+            {/* UPI ID */}
+            <div className="pay-confirm-row">
+              <span className="pay-confirm-lbl">UPI ID</span>
+              <div className="pay-upi-wrap">
+                <input
+                  className="pay-upi-inp"
+                  type="text"
+                  placeholder="e.g. name@upi or 9876543210@okicici"
+                  value={struct.upiId || ''}
+                  onChange={e => setUpiId(e.target.value)}
+                />
+                {struct.upiId && (
+                  <button className="pay-del-btn" onClick={delUpiId} title="Delete UPI ID">✕</button>
+                )}
+              </div>
+            </div>
+
+            {/* Receipt Upload */}
+            <div className="pay-confirm-row">
+              <span className="pay-confirm-lbl">Receipt</span>
+              <div className="pay-receipt-wrap">
+                {struct.receipt ? (
+                  <div className="pay-receipt-preview">
+                    {struct.receipt.type?.startsWith('image/') ? (
+                      <img src={struct.receipt.data} alt="receipt" className="pay-receipt-img" />
+                    ) : (
+                      <a href={struct.receipt.data} download={struct.receipt.name} className="pay-receipt-link">
+                        📄 {struct.receipt.name}
+                      </a>
+                    )}
+                    <span className="pay-receipt-name">{struct.receipt.name}</span>
+                    <button className="pay-del-btn" onClick={delReceipt} title="Remove receipt">✕</button>
+                  </div>
+                ) : (
+                  <label className="pay-upload-btn">
+                    📎 Upload Receipt
+                    <input type="file" accept="image/*,.pdf" style={{display:'none'}} onChange={handleReceiptUpload} />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Mark Paid Button */}
+            <div className="pay-mark-row">
+              {alreadyPaid ? (
+                <div className="pay-success-msg">
+                  <span className="pay-success-icon">✓</span>
+                  <div className="pay-success-text">
+                    <span className="pay-success-title">MONTHLY SALARY PAID SUCCESSFULLY</span>
+                    <span className="pay-success-dt">
+                      {new Date(struct.paymentMarks[monthKey].timestamp).toLocaleString('en-IN', {
+                        day: '2-digit', month: 'short', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                      })}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <button className="pay-mark-paid-btn" onClick={markPaid}>
+                  <span className="pay-mark-paid-led" />
+                  MARK AS PAID
+                </button>
+              )}
             </div>
           </div>
 
@@ -2674,6 +2776,69 @@ function EmployeeSalaryView({ employee, salaryStructures, dailyRecords, month, y
             </span>
           </div>
         </div>
+
+        {/* ── Employee read-only payment details ── */}
+        {(() => {
+          const empMonthKey = `${year}-${month}`;
+          const payMark = struct?.paymentMarks?.[empMonthKey];
+          return (
+            <div className="pay-confirm-section emp-pay-readonly">
+              <div className="pay-confirm-hdr">
+                <span className="pay-confirm-title">💳 Payment Details</span>
+                <span className="pay-confirm-sub">UPI · Receipt · Salary Confirmation</span>
+              </div>
+
+              {/* UPI ID — read-only */}
+              <div className="pay-confirm-row">
+                <span className="pay-confirm-lbl">UPI ID</span>
+                <span className="pay-upi-readonly">
+                  {struct?.upiId ? struct.upiId : <span className="pay-upi-none">Not set</span>}
+                </span>
+              </div>
+
+              {/* Receipt — view only */}
+              <div className="pay-confirm-row">
+                <span className="pay-confirm-lbl">Receipt</span>
+                <div className="pay-receipt-wrap">
+                  {struct?.receipt ? (
+                    <div className="pay-receipt-preview">
+                      {struct.receipt.type?.startsWith('image/') ? (
+                        <img src={struct.receipt.data} alt="receipt" className="pay-receipt-img" />
+                      ) : (
+                        <a href={struct.receipt.data} download={struct.receipt.name} className="pay-receipt-link">
+                          📄 {struct.receipt.name}
+                        </a>
+                      )}
+                      <span className="pay-receipt-name">{struct.receipt.name}</span>
+                    </div>
+                  ) : (
+                    <span className="pay-upi-none">No receipt uploaded</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment status */}
+              <div className="pay-mark-row">
+                {payMark?.paid ? (
+                  <div className="pay-success-msg">
+                    <span className="pay-success-icon">✓</span>
+                    <div className="pay-success-text">
+                      <span className="pay-success-title">MONTHLY SALARY PAID SUCCESSFULLY</span>
+                      <span className="pay-success-dt">
+                        {new Date(payMark.timestamp).toLocaleString('en-IN', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <span className="pay-unpaid-badge">⏳ SALARY PENDING FOR THIS MONTH</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
       </div>
     </div>

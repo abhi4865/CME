@@ -3323,3 +3323,257 @@ body {
   font-style: italic;
   letter-spacing: 0.03em;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   PAYMENT CONFIRMATION SECTION
+   ════════════════════════════════════════════════════════════════ */
+
+.pay-confirm-section {
+  background: linear-gradient(135deg, rgba(20,20,20,0.95) 0%, rgba(30,28,20,0.9) 100%);
+  border: 1px solid rgba(245,166,35,0.18);
+  border-radius: 12px;
+  padding: 1.6rem 1.8rem;
+  margin-top: 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.pay-confirm-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  border-bottom: 1px solid rgba(245,166,35,0.12);
+  padding-bottom: 0.9rem;
+  margin-bottom: 0.2rem;
+}
+.pay-confirm-title {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--amber);
+}
+.pay-confirm-sub {
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  letter-spacing: 0.5px;
+}
+
+/* Row layout for each item */
+.pay-confirm-row {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+.pay-confirm-lbl {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-sub);
+  width: 80px;
+  flex-shrink: 0;
+}
+
+/* UPI input */
+.pay-upi-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+.pay-upi-inp {
+  flex: 1;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(245,166,35,0.2);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  color: var(--text-main);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.pay-upi-inp:focus { border-color: var(--amber); }
+.pay-upi-inp::placeholder { color: var(--text-dim); }
+
+/* Read-only UPI display */
+.pay-upi-readonly {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text-main);
+  letter-spacing: 0.5px;
+}
+.pay-upi-none {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Delete button */
+.pay-del-btn {
+  background: rgba(255,50,50,0.12);
+  border: 1px solid rgba(255,50,50,0.3);
+  color: #ff5555;
+  border-radius: 5px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  transition: background 0.18s, border-color 0.18s;
+  flex-shrink: 0;
+}
+.pay-del-btn:hover { background: rgba(255,50,50,0.25); border-color: #ff5555; }
+
+/* Receipt */
+.pay-receipt-wrap { display: flex; align-items: center; gap: 0.7rem; flex: 1; }
+.pay-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(245,166,35,0.08);
+  border: 1px dashed rgba(245,166,35,0.35);
+  border-radius: 6px;
+  padding: 0.45rem 1rem;
+  color: var(--amber);
+  font-size: 0.78rem;
+  font-family: var(--mono);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.18s, border-color 0.18s;
+}
+.pay-upload-btn:hover { background: rgba(245,166,35,0.15); border-color: var(--amber); }
+
+.pay-receipt-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 6px;
+  padding: 0.4rem 0.7rem;
+  flex: 1;
+}
+.pay-receipt-img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.pay-receipt-link {
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+.pay-receipt-link:hover { text-decoration: underline; }
+.pay-receipt-name {
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* Mark Paid button row */
+.pay-mark-row { display: flex; align-items: center; padding-top: 0.4rem; }
+
+/* The green MARK AS PAID button */
+.pay-mark-paid-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: linear-gradient(135deg, #0d3320 0%, #0a2a1a 100%);
+  border: 1.5px solid #00c853;
+  border-radius: 8px;
+  padding: 0.65rem 1.6rem;
+  color: #00e676;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s, border-color 0.18s;
+  box-shadow: 0 0 12px rgba(0,200,83,0.18), inset 0 0 8px rgba(0,200,83,0.06);
+}
+.pay-mark-paid-btn:hover {
+  background: linear-gradient(135deg, #114228 0%, #0c3320 100%);
+  box-shadow: 0 0 22px rgba(0,200,83,0.38), inset 0 0 12px rgba(0,200,83,0.12);
+  border-color: #00e676;
+}
+.pay-mark-paid-led {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #00e676;
+  box-shadow: 0 0 8px #00e676, 0 0 16px rgba(0,230,118,0.6);
+  animation: led-pulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes led-pulse {
+  0%, 100% { opacity: 1;  box-shadow: 0 0 8px #00e676, 0 0 16px rgba(0,230,118,0.6); }
+  50%       { opacity: 0.5; box-shadow: 0 0 4px #00e676; }
+}
+
+/* Success message after marking paid */
+.pay-success-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  background: linear-gradient(135deg, rgba(0,80,30,0.35) 0%, rgba(0,60,20,0.25) 100%);
+  border: 1.5px solid rgba(0,200,83,0.4);
+  border-radius: 8px;
+  padding: 0.85rem 1.2rem;
+  width: 100%;
+  box-shadow: 0 0 18px rgba(0,200,83,0.12);
+}
+.pay-success-icon {
+  font-size: 1.3rem;
+  color: #00e676;
+  text-shadow: 0 0 10px rgba(0,230,118,0.6);
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 0.05rem;
+}
+.pay-success-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.pay-success-title {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #00e676;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0,230,118,0.4);
+}
+.pay-success-dt {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: rgba(0,230,118,0.65);
+  letter-spacing: 0.5px;
+}
+
+/* Pending badge (employee view) */
+.pay-unpaid-badge {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 1.5px;
+  color: var(--amber);
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
+/* Employee read-only variant — slightly dimmer border */
+.emp-pay-readonly {
+  border-color: rgba(245,166,35,0.1);
+}
