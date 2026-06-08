@@ -22,16 +22,14 @@ function buildMonthRecords(year, month) {
   const today     = new Date();
 
   return Array.from({ length: totalDays }, (_, i) => {
-    const d         = new Date(year, month, i + 1);
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    const isPast    = d <= today;
+    const d      = new Date(year, month, i + 1);
+    const isPast = d <= today;
 
     return {
       date:    i + 1,
       dayName: DAY_NAMES[d.getDay()],
-      isWeekend,
-      present: isPast && !isWeekend ? Math.random() > 0.15 : false,
-      payment: isPast && !isWeekend && Math.random() > 0.4
+      present: isPast ? Math.random() > 0.15 : false,
+      payment: isPast && Math.random() > 0.4
         ? Math.floor(Math.random() * 700 + 300)
         : 0,
     };
@@ -161,18 +159,13 @@ function AdminEmployeeProfile({ employee, month, year, dailyRecords, onBack }) {
   let totalSalary      = 0;
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const dateObj   = new Date(year, month, d);
-    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    totalWorkingDays++;
+    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const record  = dailyRecords[dateKey]?.[employee.id];
 
-    if (!isWeekend) {
-      totalWorkingDays++;
-      const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      const record  = dailyRecords[dateKey]?.[employee.id];
-
-      if (record?.status === 'present') presentDays++;
-      if (record?.status === 'absent')  absentDays++;
-      if (record?.payment) totalSalary += record.payment;
-    }
+    if (record?.status === 'present') presentDays++;
+    if (record?.status === 'absent')  absentDays++;
+    if (record?.payment) totalSalary += record.payment;
   }
 
   return (
@@ -564,15 +557,13 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
   // Derive rows directly from the shared dailyRecords (same source as admin)
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const rows = Array.from({ length: daysInMonth }, (_, i) => {
-    const dayNum    = i + 1;
-    const d         = new Date(year, month, dayNum);
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    const dateKey   = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-    const record    = dailyRecords[dateKey]?.[employee.id];
+    const dayNum  = i + 1;
+    const d       = new Date(year, month, dayNum);
+    const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+    const record  = dailyRecords[dateKey]?.[employee.id];
     return {
       date:     dayNum,
       dayName:  DAY_NAMES[d.getDay()],
-      isWeekend,
       status:   record?.status ?? null,   // 'present' | 'absent' | null (not yet marked)
       payment:  record?.status === 'present' ? (record?.payment || 0) : 0,
       worksite: record?.worksite || '',
@@ -583,13 +574,13 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
 
   let runningTotal = 0;
   const enriched = rows.map(r => {
-    if (!r.isWeekend) runningTotal += r.payment;
+    runningTotal += r.payment;
     return { ...r, cumulative: runningTotal };
   });
 
-  const workingDays  = rows.filter(r => !r.isWeekend).length;
-  const presentCount = rows.filter(r => !r.isWeekend && r.status === 'present').length;
-  const absentCount  = rows.filter(r => !r.isWeekend && r.status === 'absent').length;
+  const workingDays  = rows.length;
+  const presentCount = rows.filter(r => r.status === 'present').length;
+  const absentCount  = rows.filter(r => r.status === 'absent').length;
   const totalPayment = rows.reduce((s, r) => s + r.payment, 0);
 
   return (
@@ -656,15 +647,13 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
           </thead>
           <tbody>
             {enriched.map(r => (
-              <tr key={r.date} className={`trow ${r.isWeekend ? 'trow-wend' : ''}`}>
+              <tr key={r.date} className="trow">
 
                 <td className="td-date">{String(r.date).padStart(2, '0')}</td>
-                <td className={`td-day ${r.isWeekend ? 'day-wend' : ''}`}>{r.dayName}</td>
+                <td className="td-day">{r.dayName}</td>
 
                 <td>
-                  {r.isWeekend ? (
-                    <span className="badge-off">OFF</span>
-                  ) : r.status === 'present' ? (
+                  {r.status === 'present' ? (
                     <span className="badge-off att-present" style={{ padding: '0.4rem 1rem' }}>Present</span>
                   ) : r.status === 'absent' ? (
                     <span className="badge-off att-absent" style={{ padding: '0.4rem 1rem' }}>Absent</span>
@@ -674,9 +663,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
                 </td>
 
                 <td>
-                  {r.isWeekend ? (
-                    <span className="td-dash">—</span>
-                  ) : r.worksite ? (
+                  {r.worksite ? (
                     <span className="worksite-label">{r.worksite}</span>
                   ) : (
                     <span className="td-dash">—</span>
@@ -684,22 +671,14 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords }) {
                 </td>
 
                 <td>
-                  {r.isWeekend ? (
-                    <span className="td-dash">—</span>
-                  ) : (
-                    <div className="pay-cell">
-                      <span className="rupee">₹</span>
-                      <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
+                  <div className="pay-cell">
+                    <span className="rupee">₹</span>
+                    <span className="cum-amt">{r.payment.toLocaleString('en-IN')}</span>
+                  </div>
                 </td>
 
                 <td className="td-cum">
-                  {r.isWeekend ? (
-                    <span className="td-dash">—</span>
-                  ) : (
-                    <span className="cum-amt">₹{r.cumulative.toLocaleString('en-IN')}</span>
-                  )}
+                  <span className="cum-amt">₹{r.cumulative.toLocaleString('en-IN')}</span>
                 </td>
 
               </tr>

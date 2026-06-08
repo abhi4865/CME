@@ -586,9 +586,6 @@ body {
 
 .trow:hover { background: rgba(255,255,255,0.018); }
 
-.trow-wend { background: rgba(245,166,35,0.022); }
-.trow-wend:hover { background: rgba(245,166,35,0.04); }
-
 .att-tbl td {
   padding: 0.65rem 1.1rem;
   vertical-align: middle;
@@ -609,10 +606,6 @@ body {
   width: 60px;
 }
 
-.day-wend {
-  color: rgba(245,166,35,0.55) !important;
-  font-style: italic;
-}
 
 /* Employee name cell */
 .emp-name-cell {
