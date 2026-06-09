@@ -10,7 +10,7 @@ const getMonthRecords = async (req, res) => {
       return res.status(400).json({ message: 'year and month required' });
 
     const y = parseInt(year);
-    const m = parseInt(month);  // 0-based like JS Date
+    const m = parseInt(month) - 1;  // API receives 1-indexed month; convert to 0-based for Date()
 
     // Build all date keys in this month
     const totalDays = new Date(y, m + 1, 0).getDate();

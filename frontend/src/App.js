@@ -379,12 +379,7 @@ function LoginPage({ onLogin, error }) {
           )}
         </form>
 
-        <div className="demo-hint">
-          <span className="demo-lbl">Demo accounts:</span>
-          <code>EMP001 / pass001</code>
-          <span className="demo-sep">·</span>
-          <code>ADMIN / admin123</code>
-        </div>
+
       </div>
     </div>
   );
