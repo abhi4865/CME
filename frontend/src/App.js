@@ -693,7 +693,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
     if (!form.password.trim()) return 'Password is required.';
     const dup = employees.find(e =>
       e.loginId.toLowerCase() === form.loginId.trim().toLowerCase() &&
-      (view === 'create' || e.id !== editTarget?.id)
+      e !== editTarget
     );
     if (dup) return `Employee ID "${form.loginId.trim().toUpperCase()}" is already taken.`;
     return null;
@@ -703,7 +703,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
     const err = validate();
     if (err) { setFormErr(err); return; }
     setEmployees(prev => [...prev, {
-      id:         Math.max(...prev.map(e => e.id)) + 1,
+      id:         Date.now(),
       loginId:    form.loginId.trim().toUpperCase(),
       password:   form.password.trim(),
       name:       form.name.trim(),
@@ -719,7 +719,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
     const err = validate();
     if (err) { setFormErr(err); return; }
     setEmployees(prev => prev.map(e =>
-      e.id !== editTarget.id ? e : {
+      e !== editTarget ? e : {
         ...e,
         loginId:    form.loginId.trim().toUpperCase(),
         password:   form.password.trim(),
@@ -735,7 +735,7 @@ function EmployeeManager({ employees, setEmployees, worksites }) {
   };
 
   const doDelete = () => {
-    setEmployees(prev => prev.filter(e => e.id !== deleteTarget.id));
+    setEmployees(prev => prev.filter(e => e !== deleteTarget));
     setDeleteTarget(null);
   };
 
@@ -1955,7 +1955,7 @@ function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
     if (!amForm.password.trim()) return 'Password is required.';
     const dup = employees.find(e =>
       e.loginId.toLowerCase() === amForm.loginId.trim().toLowerCase() &&
-      (amView === 'create' || e.id !== amEditTarget?.id)
+      e !== amEditTarget
     );
     if (dup) return `ID "${amForm.loginId.trim().toUpperCase()}" is already taken.`;
     return null;
@@ -1965,7 +1965,7 @@ function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
     const err = validateAm();
     if (err) { setAmFormErr(err); return; }
     setEmployees(prev => [...prev, {
-      id:         Math.max(...prev.map(e => e.id)) + 1,
+      id:         Date.now(),
       loginId:    amForm.loginId.trim().toUpperCase(),
       password:   amForm.password.trim(),
       name:       amForm.name.trim(),
@@ -1981,7 +1981,7 @@ function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
     const err = validateAm();
     if (err) { setAmFormErr(err); return; }
     setEmployees(prev => prev.map(e =>
-      e.id !== amEditTarget.id ? e : {
+      e !== amEditTarget ? e : {
         ...e,
         loginId:    amForm.loginId.trim().toUpperCase(),
         password:   amForm.password.trim(),
@@ -1995,7 +1995,7 @@ function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
   };
 
   const doAmDelete = () => {
-    setEmployees(prev => prev.filter(e => e.id !== amDeleteTarget.id));
+    setEmployees(prev => prev.filter(e => e !== amDeleteTarget));
     setAmDeleteTarget(null);
   };
 
