@@ -146,19 +146,34 @@ export const authAPI = {
 // ═══════════════════════════════════════════════════════════════
 //  EMPLOYEES
 // ═══════════════════════════════════════════════════════════════
+// ── Normalise a single employee object so `id` is always a usable key.
+// MongoDB returns `_id` (ObjectId string). The Mongoose virtual `id`
+// may or may not override a custom numeric `id` field depending on the
+// schema. We prefer the numeric `id` when it exists; fall back to `_id`.
+function normaliseEmployee(emp) {
+  if (!emp) return emp;
+  const id = (emp.id != null && emp.id !== emp._id) ? emp.id : emp._id;
+  return { ...emp, id };
+}
+
 export const employeeAPI = {
   /** GET /api/employees → Employee[] */
-  list: () => req('GET', '/employees'),
+  list: async () => {
+    const data = await req('GET', '/employees');
+    return (Array.isArray(data) ? data : []).map(normaliseEmployee);
+  },
 
   /** GET /api/employees/:id → Employee */
-  get: (id) => req('GET', `/employees/${id}`),
+  get: async (id) => {
+    const data = await req('GET', `/employees/${id}`);
+    return normaliseEmployee(data);
+  },
 
-  /**
-   * POST /api/employees → Employee (created)
-   * NOTE: backend assigns _id; your frontend uses numeric `id`.
-   * Make sure your backend stores and returns the `id` field.
-   */
-  create: (emp) => req('POST', '/employees', emp),
+  /** POST /api/employees → Employee (created) */
+  create: async (emp) => {
+    const data = await req('POST', '/employees', emp);
+    return normaliseEmployee(data);
+  },
 
   /** PUT /api/employees/:id → Employee (updated) */
   update: (id, emp) => req('PUT', `/employees/${id}`, emp),
@@ -317,6 +332,9 @@ export const settingsAPI = {
 //            settings, payment, character }
 // ═══════════════════════════════════════════════════════════════
 export async function loadAllForUser(user) {
+  // Normalise the logged-in user's id using the same rule as employeeAPI.list.
+  // Ensures salary / settings / payment single-user fetches use a real key.
+  const uid     = (user.id != null && user.id !== user._id) ? user.id : user._id;
   const isAdmin = user.role === 'Administrator' || user.role === 'Admin Manager';
   const now     = new Date();
   const year    = now.getFullYear();
@@ -327,23 +345,22 @@ export async function loadAllForUser(user) {
     attendanceAPI.getMonth(year, month),                      // 1
     worksiteAPI.list(),                                       // 2
     isAdmin ? salaryAPI.list()
-            : salaryAPI.get(user.id)
-                .then(s => ({ [user.id]: s }))
+            : salaryAPI.get(uid)
+                .then(s => ({ [uid]: s }))
                 .catch(() => ({})),                           // 3
     isAdmin ? settingsAPI.list()
-            : settingsAPI.get(user.id)
-                .then(s => ({ [user.id]: s }))
+            : settingsAPI.get(uid)
+                .then(s => ({ [uid]: s }))
                 .catch(() => ({})),                           // 4
     isAdmin ? paymentAPI.list()
-            : paymentAPI.get(user.id)
-                .then(p => ({ [user.id]: p }))
+            : paymentAPI.get(uid)
+                .then(p => ({ [uid]: p }))
                 .catch(() => ({})),                           // 5
     isAdmin ? characterAPI.list()
             : Promise.resolve({}),                            // 6
   ]);
 
-  const ok  = (i) => results[i].status === 'fulfilled' ? results[i].value : null;
-  const err = (i) => results[i].status === 'rejected'  ? results[i].reason : null;
+  const ok = (i) => results[i].status === 'fulfilled' ? results[i].value : null;
 
   // Log non-critical failures (don't crash the app)
   results.forEach((r, i) => {
