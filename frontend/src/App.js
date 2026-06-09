@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './App.css';
+import {
+  authAPI, employeeAPI, attendanceAPI, salaryAPI,
+  characterAPI, paymentAPI, worksiteAPI, settingsAPI,
+  loadAllForUser, saveToken, clearToken,
+} from './api';
 
 const CME_LOGO = 'data:image/png;base64,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';
 
@@ -207,10 +212,50 @@ function TimePicker({ value, onChange, disabled }) {
 //  LOGIN PAGE
 // ═══════════════════════════════════════════════════════════════
 function LoginPage({ onLogin, error }) {
-  const [loginId,  setLoginId]  = useState('');
-  const [password, setPassword] = useState('');
-  const [showPwd,  setShowPwd]  = useState(false);
-  const [shaking,  setShaking]  = useState(false);
+  const [loginId,   setLoginId]   = useState('');
+  const [password,  setPassword]  = useState('');
+  const [showPwd,   setShowPwd]   = useState(false);
+  const [shaking,   setShaking]   = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotSecA,  setForgotSecA]  = useState('');
+  const [forgotNewPwd,setForgotNewPwd]= useState('');
+  const [forgotMsg,   setForgotMsg]   = useState({ text: '', ok: false });
+  const [forgotAttempts, setForgotAttempts] = useState(() => getAdminAttempts().count);
+
+  const savedSec   = getAdminSecurity();
+  const forgotLocked = forgotAttempts >= MAX_RESET_ATTEMPTS;
+
+  const handleForgotReset = () => {
+    if (forgotLocked) return;
+    if (!savedSec) { setForgotMsg({ text: 'No security question configured by admin.', ok: false }); return; }
+    if (!forgotNewPwd || forgotNewPwd.length < 6) { setForgotMsg({ text: 'New password must be at least 6 characters.', ok: false }); return; }
+    if (forgotSecA.trim().toLowerCase() !== savedSec.answer) {
+      const c = forgotAttempts + 1;
+      setForgotAttempts(c);
+      saveAdminAttempts(c);
+      const rem = MAX_RESET_ATTEMPTS - c;
+      setForgotMsg({
+        text: rem > 0
+          ? `Incorrect answer. ${rem} attempt${rem !== 1 ? 's' : ''} remaining.`
+          : '🔒 Too many wrong attempts. Locked until tomorrow.',
+        ok: false,
+      });
+      return;
+    }
+    // Update employees in localStorage directly
+    try {
+      const emps = lsGet('cme_employees', []);
+      const updated = emps.map(e => e.role === 'Administrator' ? { ...e, password: forgotNewPwd } : e);
+      lsSet('cme_employees', updated);
+      saveAdminAttempts(0);
+      setForgotAttempts(0);
+      setForgotMsg({ text: '✓ Password reset! You can now log in with your new password.', ok: true });
+      setForgotSecA(''); setForgotNewPwd('');
+      setTimeout(() => setShowForgot(false), 2500);
+    } catch {
+      setForgotMsg({ text: 'Reset failed. Please try again.', ok: false });
+    }
+  };
 
   useEffect(() => {
     if (error) {
@@ -291,6 +336,47 @@ function LoginPage({ onLogin, error }) {
           <button className="login-btn" type="submit">
             Sign In <span className="login-arrow">→</span>
           </button>
+
+          {/* Forgot Password link — opens inline Q&A reset */}
+          <button
+            type="button"
+            className="login-forgot-link"
+            onClick={() => { setShowForgot(v => !v); setForgotMsg({ text:'', ok:false }); }}
+          >
+            {showForgot ? '↑ Hide' : 'Forgot Password?'}
+          </button>
+
+          {showForgot && (
+            <div className="login-forgot-panel">
+              <div className="login-forgot-title">🛡 Admin Password Reset</div>
+              {!savedSec ? (
+                <p className="login-forgot-no-sec">No security question configured. Log in and set one via Admin Profile → Security.</p>
+              ) : forgotLocked ? (
+                <div className="login-forgot-locked">
+                  🔒 Reset locked for today ({MAX_RESET_ATTEMPTS}/{MAX_RESET_ATTEMPTS} attempts used). Try again tomorrow.
+                </div>
+              ) : (
+                <>
+                  <p className="login-forgot-q">Q: {savedSec.question}</p>
+                  <div className="field-group">
+                    <label className="field-lbl">Your Answer</label>
+                    <input className="field-inp" type="password" value={forgotSecA} onChange={e => setForgotSecA(e.target.value)} placeholder="Security answer" />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-lbl">New Password</label>
+                    <input className="field-inp" type="password" value={forgotNewPwd} onChange={e => setForgotNewPwd(e.target.value)} placeholder="Min. 6 characters" />
+                  </div>
+                  <div className="login-forgot-att">
+                    {forgotAttempts}/{MAX_RESET_ATTEMPTS} attempts used today
+                  </div>
+                  {forgotMsg.text && (
+                    <div className={`adm-prof-msg ${forgotMsg.ok ? 'adm-prof-ok' : 'adm-prof-err'}`} style={{marginBottom:'0.6rem'}}>{forgotMsg.text}</div>
+                  )}
+                  <button type="button" className="login-forgot-btn" onClick={handleForgotReset}>Reset Password</button>
+                </>
+              )}
+            </div>
+          )}
         </form>
 
         <div className="demo-hint">
@@ -2131,6 +2217,301 @@ function AdminManagerPanel({ employees, setEmployees, isMainAdmin }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  MAIN ADMIN PROFILE MODAL
+// ═══════════════════════════════════════════════════════════════
+const ADMIN_SEC_KEY      = 'cme_admin_security';       // { question, answer }
+const ADMIN_ATT_KEY      = 'cme_admin_reset_attempts'; // { count, date }
+const MAX_RESET_ATTEMPTS = 5;
+
+function getAdminSecurity() {
+  try { return JSON.parse(localStorage.getItem(ADMIN_SEC_KEY) || 'null'); } catch { return null; }
+}
+function getAdminAttempts() {
+  try {
+    const a = JSON.parse(localStorage.getItem(ADMIN_ATT_KEY) || 'null');
+    if (!a) return { count: 0, date: new Date().toDateString() };
+    if (a.date !== new Date().toDateString()) return { count: 0, date: new Date().toDateString() };
+    return a;
+  } catch { return { count: 0, date: new Date().toDateString() }; }
+}
+function saveAdminAttempts(count) {
+  lsSet(ADMIN_ATT_KEY, { count, date: new Date().toDateString() });
+}
+
+function MainAdminProfileModal({ employee, employees, setEmployees, onClose, onCredentialUpdate }) {
+  const [activeSection, setActiveSection] = useState('profile');
+
+  // ── Profile ──
+  const [displayName, setDisplayName] = useState(employee.name);
+  const [nameMsg,     setNameMsg]     = useState('');
+
+  // ── Credentials ──
+  const [currentPwd, setCurrentPwd]   = useState('');
+  const [newLoginId, setNewLoginId]   = useState(employee.loginId);
+  const [newPwd,     setNewPwd]       = useState('');
+  const [confirmPwd, setConfirmPwd]   = useState('');
+  const [credMsg,    setCredMsg]      = useState({ text: '', ok: false });
+
+  // ── Security setup ──
+  const [secQ,    setSecQ]    = useState(() => getAdminSecurity()?.question || '');
+  const [secA,    setSecA]    = useState('');
+  const [secQMsg, setSecQMsg] = useState({ text: '', ok: false });
+
+  // ── Forgot-password reset ──
+  const [resetSecA,   setResetSecA]   = useState('');
+  const [resetNewPwd, setResetNewPwd] = useState('');
+  const [resetMsg,    setResetMsg]    = useState({ text: '', ok: false });
+  const [attempts,    setAttempts]    = useState(() => getAdminAttempts().count);
+
+  const locked      = attempts >= MAX_RESET_ATTEMPTS;
+  const savedSec    = getAdminSecurity();
+
+  // ── Save display name ──
+  const saveName = () => {
+    if (!displayName.trim()) { setNameMsg('Name cannot be empty.'); return; }
+    setEmployees(prev => prev.map(e => e.id === employee.id ? { ...e, name: displayName.trim() } : e));
+    setNameMsg('✓ Name updated successfully.');
+    setTimeout(() => setNameMsg(''), 3000);
+  };
+
+  // ── Save credentials ──
+  const saveCredentials = () => {
+    const adminEmp = employees.find(e => e.id === employee.id);
+    if (currentPwd !== adminEmp.password) {
+      setCredMsg({ text: 'Current password is incorrect.', ok: false }); return;
+    }
+    if (!newLoginId.trim()) {
+      setCredMsg({ text: 'Login ID cannot be empty.', ok: false }); return;
+    }
+    const conflict = employees.find(e => e.id !== employee.id && e.loginId.toLowerCase() === newLoginId.trim().toLowerCase());
+    if (conflict) {
+      setCredMsg({ text: 'This Login ID is already taken by another user.', ok: false }); return;
+    }
+    let updates = { loginId: newLoginId.trim() };
+    if (newPwd) {
+      if (newPwd !== confirmPwd) {
+        setCredMsg({ text: 'New passwords do not match.', ok: false }); return;
+      }
+      if (newPwd.length < 6) {
+        setCredMsg({ text: 'Password must be at least 6 characters.', ok: false }); return;
+      }
+      updates.password = newPwd;
+    }
+    setEmployees(prev => prev.map(e => e.id === employee.id ? { ...e, ...updates } : e));
+    if (onCredentialUpdate) onCredentialUpdate({ ...adminEmp, ...updates });
+    setCredMsg({ text: '✓ Credentials updated. Please note your new login ID.', ok: true });
+    setCurrentPwd(''); setNewPwd(''); setConfirmPwd('');
+    setTimeout(() => setCredMsg({ text: '', ok: false }), 4000);
+  };
+
+  // ── Save security Q&A ──
+  const saveSecQA = () => {
+    if (!secQ.trim()) { setSecQMsg({ text: 'Security question cannot be empty.', ok: false }); return; }
+    if (!secA.trim()) { setSecQMsg({ text: 'Answer cannot be empty.', ok: false }); return; }
+    lsSet(ADMIN_SEC_KEY, { question: secQ.trim(), answer: secA.trim().toLowerCase() });
+    setSecQMsg({ text: '✓ Security question saved successfully.', ok: true });
+    setSecA('');
+    setTimeout(() => setSecQMsg({ text: '', ok: false }), 3000);
+  };
+
+  // ── Reset password via Q&A ──
+  const resetViaQA = () => {
+    if (locked) return;
+    if (!savedSec) { setResetMsg({ text: 'No security question set.', ok: false }); return; }
+    if (!resetNewPwd) { setResetMsg({ text: 'Enter a new password.', ok: false }); return; }
+    if (resetNewPwd.length < 6) { setResetMsg({ text: 'Password must be at least 6 characters.', ok: false }); return; }
+    if (resetSecA.trim().toLowerCase() !== savedSec.answer) {
+      const newCount = attempts + 1;
+      setAttempts(newCount);
+      saveAdminAttempts(newCount);
+      const rem = MAX_RESET_ATTEMPTS - newCount;
+      setResetMsg({
+        text: rem > 0
+          ? `Incorrect answer. ${rem} attempt${rem !== 1 ? 's' : ''} remaining.`
+          : '🔒 Incorrect answer. Reset locked for today.',
+        ok: false,
+      });
+      return;
+    }
+    setEmployees(prev => prev.map(e => e.id === employee.id ? { ...e, password: resetNewPwd } : e));
+    saveAdminAttempts(0);
+    setAttempts(0);
+    setResetMsg({ text: '✓ Password reset successfully. Use your new password next login.', ok: true });
+    setResetSecA(''); setResetNewPwd('');
+    setTimeout(() => setResetMsg({ text: '', ok: false }), 4000);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="adm-prof-modal" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="adm-prof-header">
+          <div className="adm-prof-avatar-wrap">
+            <div className="adm-prof-avatar">A</div>
+            <div className="adm-prof-avatar-glow" />
+          </div>
+          <div className="adm-prof-hdr-info">
+            <div className="adm-prof-hdr-name">{employee.name}</div>
+            <div className="adm-prof-hdr-role">
+              <span className="adm-prof-role-badge">Administrator</span>
+              <span className="adm-prof-hdr-id">· {employee.loginId}</span>
+            </div>
+          </div>
+          <button className="adm-prof-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="adm-prof-tabs">
+          {[
+            { key: 'profile',     icon: '👤', label: 'Profile'      },
+            { key: 'credentials', icon: '🔑', label: 'Credentials'  },
+            { key: 'security',    icon: '🛡',  label: 'Security'     },
+          ].map(t => (
+            <button
+              key={t.key}
+              className={`adm-prof-tab ${activeSection === t.key ? 'adm-prof-tab-on' : ''}`}
+              onClick={() => setActiveSection(t.key)}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="adm-prof-body">
+
+          {/* ── PROFILE ── */}
+          {activeSection === 'profile' && (
+            <div className="adm-prof-section">
+              <div className="adm-prof-sec-title">Display Name</div>
+              <div className="field-group">
+                <label className="field-lbl">Full Name</label>
+                <input className="field-inp" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="e.g. Mahanti Admin" />
+              </div>
+              {nameMsg && <div className={`adm-prof-msg ${nameMsg.startsWith('✓') ? 'adm-prof-ok' : 'adm-prof-err'}`}>{nameMsg}</div>}
+              <button className="adm-prof-save-btn" onClick={saveName}>Save Name</button>
+
+              <div className="adm-prof-info-grid">
+                {[
+                  { lbl: 'Login ID',   val: employee.loginId   },
+                  { lbl: 'Role',       val: employee.role       },
+                  { lbl: 'Department', val: employee.department },
+                  { lbl: 'Email',      val: employee.email      },
+                ].map(r => (
+                  <div key={r.lbl} className="adm-prof-info-row">
+                    <span className="adm-prof-info-lbl">{r.lbl}</span>
+                    <span className="adm-prof-info-val">{r.val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── CREDENTIALS ── */}
+          {activeSection === 'credentials' && (
+            <div className="adm-prof-section">
+              <div className="adm-prof-sec-title">Change Login Credentials</div>
+              <p className="adm-prof-hint">Verify your current password to update your Login ID or set a new password.</p>
+
+              <div className="field-group">
+                <label className="field-lbl">Current Password <span className="adm-req">*required</span></label>
+                <input className="field-inp" type="password" value={currentPwd} onChange={e => setCurrentPwd(e.target.value)} placeholder="Enter current password" />
+              </div>
+
+              <div className="adm-prof-divider" />
+
+              <div className="field-group">
+                <label className="field-lbl">New Login ID</label>
+                <input className="field-inp" value={newLoginId} onChange={e => setNewLoginId(e.target.value)} placeholder="e.g. CME_ADMIN" />
+              </div>
+              <div className="field-group">
+                <label className="field-lbl">New Password <span className="adm-prof-optional">(leave blank to keep current)</span></label>
+                <input className="field-inp" type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min. 6 characters" />
+              </div>
+              {newPwd && (
+                <div className="field-group">
+                  <label className="field-lbl">Confirm New Password</label>
+                  <input className="field-inp" type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Re-enter new password" />
+                </div>
+              )}
+              {credMsg.text && <div className={`adm-prof-msg ${credMsg.ok ? 'adm-prof-ok' : 'adm-prof-err'}`}>{credMsg.text}</div>}
+              <button className="adm-prof-save-btn" onClick={saveCredentials}>Update Credentials</button>
+            </div>
+          )}
+
+          {/* ── SECURITY ── */}
+          {activeSection === 'security' && (
+            <div className="adm-prof-section">
+
+              {/* Setup Q&A */}
+              <div className="adm-prof-sec-title">Security Question Setup</div>
+              <p className="adm-prof-hint">Used to reset your password if you forget it. Answer is case-insensitive.</p>
+
+              {savedSec && (
+                <div className="adm-sec-active-banner">
+                  <span className="adm-sec-led" />
+                  <span>Active question: <em>"{savedSec.question}"</em></span>
+                </div>
+              )}
+
+              <div className="field-group">
+                <label className="field-lbl">Security Question</label>
+                <input className="field-inp" value={secQ} onChange={e => setSecQ(e.target.value)} placeholder="e.g. Name of your first worksite?" />
+              </div>
+              <div className="field-group">
+                <label className="field-lbl">Answer</label>
+                <input className="field-inp" type="password" value={secA} onChange={e => setSecA(e.target.value)} placeholder="Your secret answer" />
+              </div>
+              {secQMsg.text && <div className={`adm-prof-msg ${secQMsg.ok ? 'adm-prof-ok' : 'adm-prof-err'}`}>{secQMsg.text}</div>}
+              <button className="adm-prof-save-btn" onClick={saveSecQA}>Save Security Q&A</button>
+
+              <div className="adm-prof-divider adm-prof-divider-spacer" />
+
+              {/* Forgot-password reset panel */}
+              <div className="adm-prof-sec-title">
+                Password Reset
+                <span className={`adm-att-badge ${locked ? 'adm-att-locked' : attempts > 2 ? 'adm-att-warn' : ''}`}>
+                  {attempts}/{MAX_RESET_ATTEMPTS} attempts used today
+                </span>
+              </div>
+
+              {!savedSec ? (
+                <div className="adm-prof-no-sec">
+                  ⚠ No security question set. Configure one above to enable password reset.
+                </div>
+              ) : locked ? (
+                <div className="adm-prof-locked">
+                  🔒 Reset locked for today — {MAX_RESET_ATTEMPTS}/{MAX_RESET_ATTEMPTS} attempts used.
+                  <span className="adm-locked-sub">Resets automatically tomorrow.</span>
+                </div>
+              ) : (
+                <>
+                  <div className="adm-reset-q-display">
+                    <span className="adm-reset-q-icon">❓</span>
+                    <span className="adm-reset-q-text">{savedSec.question}</span>
+                  </div>
+                  <div className="field-group">
+                    <label className="field-lbl">Your Answer</label>
+                    <input className="field-inp" type="password" value={resetSecA} onChange={e => setResetSecA(e.target.value)} placeholder="Enter your security answer" />
+                  </div>
+                  <div className="field-group">
+                    <label className="field-lbl">New Password</label>
+                    <input className="field-inp" type="password" value={resetNewPwd} onChange={e => setResetNewPwd(e.target.value)} placeholder="Min. 6 characters" />
+                  </div>
+                  {resetMsg.text && <div className={`adm-prof-msg ${resetMsg.ok ? 'adm-prof-ok' : 'adm-prof-err'}`}>{resetMsg.text}</div>}
+                  <button className="adm-prof-save-btn adm-reset-btn" onClick={resetViaQA}>Reset Password</button>
+                </>
+              )}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ADMIN DASHBOARD  –  Daily roster + Employee Management tabs
 // ═══════════════════════════════════════════════════════════════
 function AdminDashboard({
@@ -2143,6 +2524,7 @@ function AdminDashboard({
   paymentLedger, setPaymentLedger,
   worksites, setWorksites,
   isMainAdmin,
+  ensureMonthLoaded,
 }) {
   const now  = new Date();
   const [year,          setYear]         = useState(now.getFullYear());
@@ -2150,9 +2532,16 @@ function AdminDashboard({
   const [day,           setDay]          = useState(now.getDate());
   const [selectedEmpId, setSelectedEmpId] = useState(null);
   const [activeTab,     setActiveTab]    = useState('attendance');
-  const [siteFilter,    setSiteFilter]   = useState('all');
+  const [siteFilter,       setSiteFilter]      = useState('all');
+  const [showAdminProfile, setShowAdminProfile] = useState(false);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Lazy-load attendance whenever admin navigates to a different month/year
+  useEffect(() => {
+    if (ensureMonthLoaded) ensureMonthLoaded(year, month);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month]);
 
   useEffect(() => {
     if (day > daysInMonth) setDay(daysInMonth);
@@ -2296,16 +2685,35 @@ function AdminDashboard({
           </div>
         </div>
         <div className="hdr-user">
-          <div className="user-chip">
+          <div
+            className={`user-chip${isMainAdmin ? ' user-chip-clickable' : ''}`}
+            onClick={isMainAdmin ? () => setShowAdminProfile(true) : undefined}
+            title={isMainAdmin ? 'Manage Admin Profile & Security' : undefined}
+          >
             <div className="user-avatar">A</div>
             <div className="user-info">
               <span className="user-name">{employee.name}</span>
               <span className="user-meta">{employee.role}</span>
             </div>
+            {isMainAdmin && <span className="user-chip-edit-icon">✎</span>}
           </div>
           <button className="dash-logout" onClick={onLogout}>⏻ Logout</button>
         </div>
       </header>
+
+      {/* Main Admin Profile Modal */}
+      {showAdminProfile && isMainAdmin && (
+        <MainAdminProfileModal
+          employee={employee}
+          employees={employees}
+          setEmployees={setEmployees}
+          onClose={() => setShowAdminProfile(false)}
+          onCredentialUpdate={updatedEmp => {
+            // keep local employee reference in sync (name shown in header)
+            // actual persistence handled by setEmployees inside modal
+          }}
+        />
+      )}
 
       {/* ── ADMIN NAVIGATION TABS ── */}
       <div className="admin-nav">
@@ -3340,7 +3748,7 @@ function EmployeeDashboard({ employee, onLogout, dailyRecords, salaryStructures,
 }
 
 
-// ─── localStorage helpers ────────────────────────────────────────
+// ─── localStorage helpers (kept for admin security Q&A features) ──
 function lsGet(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -3350,6 +3758,7 @@ function lsGet(key, fallback) {
 function lsSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
+// usePersisted kept for backward compatibility (used by admin security modal)
 function usePersisted(key, fallback) {
   const [state, setState] = useState(() => lsGet(key, fallback));
   const setPersisted = React.useCallback(valOrFn => {
@@ -3363,58 +3772,269 @@ function usePersisted(key, fallback) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  ROOT APP
+//  ROOT APP  —  API-backed state, MongoDB persistence
 // ═══════════════════════════════════════════════════════════════
 function App() {
-  const [employees,        setEmployeesRaw]     = useState(() => lsGet('cme_employees', INITIAL_EMPLOYEES));
-  const [user,             setUser]             = useState(null);
-  const [err,              setErr]              = useState('');
-  const [dailyRecords,     setDailyRecords]     = usePersisted('cme_dailyRecords', {});
-  // Character profiles — keyed by employee ID, admin-only, never exposed to EmployeeDashboard
-  const [characterProfiles, setCharacterProfiles] = usePersisted('cme_characterProfiles', {});
-  const [salaryStructures, setSalaryStructures] = usePersisted('cme_salaryStructures', {});
-  // Per-employee settings (OT rate, etc.) — persisted so rate carries across days & sessions
-  const [employeeSettings, setEmployeeSettings] = usePersisted('cme_employeeSettings', {});
-  // Payment ledger — tracks admin pay-outs; employee sees read-only
-  const [paymentLedger,    setPaymentLedger]    = usePersisted('cme_paymentLedger', {});
-  // Worksites — managed by admin
-  const [worksites,        setWorksites]        = usePersisted('cme_worksites', [
-    { id: 'site_1', name: 'Delhi' },
-    { id: 'site_2', name: 'Varanasi' },
-  ]);
+  // ── Core state (loaded from backend, NOT localStorage) ──────
+  const [employees,         setEmployeesState]        = useState([]);
+  const [dailyRecords,      setDailyRecordsState]     = useState({});
+  const [characterProfiles, setCharacterProfilesState]= useState({});
+  const [salaryStructures,  setSalaryStructuresState] = useState({});
+  const [employeeSettings,  setEmployeeSettingsState] = useState({});
+  const [paymentLedger,     setPaymentLedgerState]    = useState({});
+  const [worksites,         setWorksitesState]        = useState([]);
 
-  // Persist employees (wrap raw setter)
-  const setEmployees = React.useCallback(valOrFn => {
-    setEmployeesRaw(prev => {
+  // ── App-level state ─────────────────────────────────────────
+  const [user,    setUser]    = useState(null);
+  const [err,     setErr]     = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // ── Refs for debounce timers and month tracking ──────────────
+  const salaryDebounceRef   = useRef({});
+  const settingsDebounceRef = useRef({});
+  const loadedMonthsRef     = useRef(new Set());
+
+  // ── Auto-logout on 401 ──────────────────────────────────────
+  useEffect(() => {
+    const handler = () => handleLogout();
+    window.addEventListener('cme-unauthorized', handler);
+    return () => window.removeEventListener('cme-unauthorized', handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ════════════════════════════════════════════════════════════
+  //  SMART SETTERS  —  optimistic local update + API background sync
+  // ════════════════════════════════════════════════════════════
+
+  // ── Employees ───────────────────────────────────────────────
+  const setEmployees = useCallback((valOrFn) => {
+    setEmployeesState(prev => {
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
-      lsSet('cme_employees', next);
+      if (next.length > prev.length) {
+        // CREATE — find the new employee
+        const newEmp = next.find(e => !prev.some(p => p.id === e.id));
+        if (newEmp) {
+          employeeAPI.create(newEmp).catch(e => console.error('[CME] Employee create:', e.message));
+        }
+      } else if (next.length < prev.length) {
+        // DELETE
+        const del = prev.find(e => !next.some(n => n.id === e.id));
+        if (del) {
+          employeeAPI.delete(del.id).catch(e => console.error('[CME] Employee delete:', e.message));
+        }
+      } else {
+        // UPDATE — find changed employee(s)
+        next.forEach(emp => {
+          const old = prev.find(p => p.id === emp.id);
+          if (old && JSON.stringify(old) !== JSON.stringify(emp)) {
+            employeeAPI.update(emp.id, emp).catch(e => console.error('[CME] Employee update:', e.message));
+          }
+        });
+      }
       return next;
     });
   }, []);
 
+  // ── Daily Attendance records ─────────────────────────────────
+  // All setDailyRecords calls update exactly ONE dateKey at a time,
+  // so we diff prev vs next to find it and PUT only that day.
+  const setDailyRecords = useCallback((valOrFn) => {
+    setDailyRecordsState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      Object.keys(next).forEach(dk => {
+        if (next[dk] !== prev[dk]) {
+          attendanceAPI.putDay(dk, next[dk])
+            .catch(e => console.error('[CME] Attendance sync:', e.message));
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Character profiles ───────────────────────────────────────
+  const setCharacterProfiles = useCallback((valOrFn) => {
+    setCharacterProfilesState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      Object.keys(next).forEach(empId => {
+        if (next[empId] !== prev[empId]) {
+          characterAPI.update(empId, next[empId])
+            .catch(e => console.error('[CME] Character sync:', e.message));
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Salary structures (debounced 800ms — edited via keyboard) ─
+  const setSalaryStructures = useCallback((valOrFn) => {
+    setSalaryStructuresState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      Object.keys(next).forEach(empId => {
+        if (next[empId] !== prev[empId]) {
+          clearTimeout(salaryDebounceRef.current[empId]);
+          const snap = next[empId];
+          salaryDebounceRef.current[empId] = setTimeout(() => {
+            salaryAPI.update(empId, snap)
+              .catch(e => console.error('[CME] Salary sync:', e.message));
+          }, 800);
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Employee settings / OT rate (debounced) ─────────────────
+  const setEmployeeSettings = useCallback((valOrFn) => {
+    setEmployeeSettingsState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      Object.keys(next).forEach(empId => {
+        if (next[empId] !== prev[empId]) {
+          clearTimeout(settingsDebounceRef.current[empId]);
+          const snap = next[empId];
+          settingsDebounceRef.current[empId] = setTimeout(() => {
+            settingsAPI.update(empId, snap)
+              .catch(e => console.error('[CME] Settings sync:', e.message));
+          }, 800);
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Payment ledger ───────────────────────────────────────────
+  const setPaymentLedger = useCallback((valOrFn) => {
+    setPaymentLedgerState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      Object.keys(next).forEach(empId => {
+        const prevArr = prev[empId] || [];
+        const nextArr = next[empId] || [];
+        if (nextArr.length > prevArr.length) {
+          // New payment event appended
+          const newEvent = nextArr[nextArr.length - 1];
+          paymentAPI.add(empId, newEvent)
+            .catch(e => console.error('[CME] Payment sync:', e.message));
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Worksites ────────────────────────────────────────────────
+  const setWorksites = useCallback((valOrFn) => {
+    setWorksitesState(prev => {
+      const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
+      if (next.length > prev.length) {
+        const newSite = next.find(s => !prev.some(p => p.id === s.id));
+        if (newSite) {
+          worksiteAPI.create(newSite)
+            .catch(e => console.error('[CME] Worksite create:', e.message));
+        }
+      } else if (next.length < prev.length) {
+        const del = prev.find(s => !next.some(n => n.id === s.id));
+        if (del) {
+          worksiteAPI.delete(del.id)
+            .catch(e => console.error('[CME] Worksite delete:', e.message));
+        }
+      } else {
+        next.forEach(site => {
+          const old = prev.find(p => p.id === site.id);
+          if (old && JSON.stringify(old) !== JSON.stringify(site)) {
+            worksiteAPI.update(site.id, site)
+              .catch(e => console.error('[CME] Worksite update:', e.message));
+          }
+        });
+      }
+      return next;
+    });
+  }, []);
+
+  // ════════════════════════════════════════════════════════════
+  //  LAZY ATTENDANCE LOADER
+  //  Called by AdminDashboard whenever month/year changes.
+  //  Merges new month's data into existing dailyRecords.
+  // ════════════════════════════════════════════════════════════
+  const ensureMonthLoaded = useCallback(async (year, month) => {
+    const key = `${year}-${month + 1}`; // month is 0-indexed from component
+    if (loadedMonthsRef.current.has(key)) return;
+    loadedMonthsRef.current.add(key); // prevent concurrent fetches
+    try {
+      const att = await attendanceAPI.getMonth(year, month + 1);
+      // Merge into existing state (don't wipe other months)
+      setDailyRecordsState(prev => ({ ...prev, ...att }));
+    } catch (e) {
+      loadedMonthsRef.current.delete(key); // allow retry on next visit
+      console.warn('[CME] Month fetch failed:', e.message);
+    }
+  }, []);
+
+  // ════════════════════════════════════════════════════════════
+  //  LOGIN / LOGOUT
+  // ════════════════════════════════════════════════════════════
   const handleLogin = async (id, pwd) => {
     try {
       setErr('');
-      const res  = await fetch('api/auth/login', {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ loginId: id, password: pwd }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setErr(data.message || 'Invalid Login ID or Password.'); return; }
-      localStorage.setItem('cme_token', data.token);
+      setLoading(true);
+      // 1. Authenticate
+      const data = await authAPI.login(id, pwd);
+      saveToken(data.token);
+
+      // 2. Load all data in parallel
+      const allData = await loadAllForUser(data.employee);
+      saveToken(data.token); // token is still valid
+
+      // 3. Hydrate state
+      setEmployeesState(allData.employees);
+      setDailyRecordsState(allData.attendance);
+      setWorksitesState(allData.worksites);
+      setSalaryStructuresState(allData.salaryStructures);
+      setEmployeeSettingsState(allData.employeeSettings);
+      setPaymentLedgerState(allData.paymentLedger);
+      setCharacterProfilesState(allData.characterProfiles);
+
+      // Mark current month as loaded
+      loadedMonthsRef.current.add(allData.loadedMonthKey);
+
       setUser(data.employee);
     } catch (e) {
-      setErr('Server unreachable. Make sure backend is running.');
+      setErr(e.message || 'Invalid Login ID or Password.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => { setUser(null); setErr(''); localStorage.removeItem('cme_token'); };
+  const handleLogout = () => {
+    setUser(null);
+    setErr('');
+    // Clear all in-memory state
+    setEmployeesState([]);
+    setDailyRecordsState({});
+    setCharacterProfilesState({});
+    setSalaryStructuresState({});
+    setEmployeeSettingsState({});
+    setPaymentLedgerState({});
+    setWorksitesState([]);
+    loadedMonthsRef.current.clear();
+    clearToken();
+  };
 
-  // Main admin = anyone with role 'Administrator' (the ADMIN account)
-  // Admin Manager = secondary admin, cannot manage other admin managers
   const isMainAdmin   = user?.role === 'Administrator';
   const isAdminAccess = user?.role === 'Administrator' || user?.role === 'Admin Manager';
+
+  // ── Full-screen loading screen ──────────────────────────────
+  if (loading) {
+    return (
+      <div className="cme-loading-screen">
+        <div className="cme-loading-card">
+          <div className="cme-loading-logo">CME</div>
+          <div className="cme-loading-sub">Corporation of Mahanti Electricals</div>
+          <div className="cme-loading-bar">
+            <div className="cme-loading-bar-fill" />
+          </div>
+          <div className="cme-loading-msg">Loading your workspace…</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="App">
@@ -3439,10 +4059,11 @@ function App() {
           worksites={worksites}
           setWorksites={setWorksites}
           isMainAdmin={isMainAdmin}
+          ensureMonthLoaded={ensureMonthLoaded}
         />
       )}
 
-      {/* Character profile is intentionally NOT passed here */}
+      {/* Character profile intentionally NOT passed to EmployeeDashboard */}
       {user && !isAdminAccess && (
         <EmployeeDashboard
           employee={user}
