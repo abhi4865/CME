@@ -5,6 +5,7 @@ frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
+frontend/.env.production
 
 # ===== BACKEND =====
 backend/node_modules/
