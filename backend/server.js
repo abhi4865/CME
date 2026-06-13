@@ -10,7 +10,7 @@ const app = express();
 // ── CORS ──────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://cme-jet.vercel.app',
+  'https://cmebase.vercel.app/',
   process.env.CLIENT_URL,
 ].filter(Boolean);
 
