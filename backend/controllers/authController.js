@@ -10,10 +10,17 @@ const PaymentLedger    = require('../models/PaymentLedger');
 const login = async (req, res) => {
   try {
     const { loginId, password } = req.body;
+
+    // ── Input validation ──
     if (!loginId || !password)
       return res.status(400).json({ message: 'loginId and password required' });
 
-    const emp = await Employee.findOne({ loginId: loginId.toUpperCase() });
+    // ── Sanitize input ──
+    const sanitizedId = loginId.toString().trim().toUpperCase();
+    if (sanitizedId.length > 50)
+      return res.status(400).json({ message: 'Invalid loginId' });
+
+    const emp = await Employee.findOne({ loginId: sanitizedId });
     if (!emp)
       return res.status(401).json({ message: 'Invalid credentials' });
 
@@ -21,10 +28,15 @@ const login = async (req, res) => {
     if (!match)
       return res.status(401).json({ message: 'Invalid credentials' });
 
+    // ── Strengthened JWT (Step 4) ──
     const token = jwt.sign(
       { id: emp._id, role: emp.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      {
+        expiresIn: '7d',
+        issuer:    'cme-portal',   // ← ADDED
+        audience:  'cme-users',   // ← ADDED
+      }
     );
 
     res.json({
@@ -48,8 +60,7 @@ const login = async (req, res) => {
 const seed = async (req, res) => {
   try {
     const results = [];
-    
-    // FIX: Added a reset flag. If the URL has ?reset=true, we clear the DB first.
+
     const reset = req.query.reset === 'true';
     if (reset) {
       await Employee.deleteMany({});
@@ -115,7 +126,6 @@ const seed = async (req, res) => {
         { id: 'tds',  label: 'Tax Deduction',            amount: 0 },
         { id: 'late', label: 'Late / Absence Deduction', amount: 0 },
       ];
-
       await SalaryStructure.insertMany(
         employees.map(emp => ({
           employeeId:   emp._id,
@@ -158,13 +168,13 @@ const seed = async (req, res) => {
     if (charCount === 0) {
       await CharacterProfile.insertMany(
         employees.map(emp => ({
-          employeeId:      emp._id,
-          workQuality:     0, punctuality:    0, taskCompletion: 0, initiative:    0,
-          discipline:      0, professionalism:0, teamwork:       0, communication: 0,
-          positiveAttitude:0, reliability:    0, adaptability:   0, workHabits:    0,
-          misconduct:      0, attitudeRisk:   0, absenteeism:    0, conflictRisk:  0,
-          notes:           '',
-          lastUpdated:     null,
+          employeeId:       emp._id,
+          workQuality:      0, punctuality:     0, taskCompletion: 0, initiative:    0,
+          discipline:       0, professionalism: 0, teamwork:       0, communication: 0,
+          positiveAttitude: 0, reliability:     0, adaptability:   0, workHabits:    0,
+          misconduct:       0, attitudeRisk:    0, absenteeism:    0, conflictRisk:  0,
+          notes:            '',
+          lastUpdated:      null,
         }))
       );
       results.push('✓ 5 character profiles');
@@ -192,80 +202,65 @@ const seed = async (req, res) => {
   }
 };
 
-// ── PUT /api/employees/:id (EDIT EMPLOYEE) ────────────────────────
+// ── PUT /api/employees/:id ────────────────────────────────────────
 const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     const { loginId, name, role, email, department, siteId } = req.body;
 
-    if (!id) {
+    if (!id)
       return res.status(400).json({ message: 'Employee ID is required.' });
-    }
 
     if (loginId) {
       const duplicate = await Employee.findOne({
         loginId: loginId.toUpperCase(),
-        _id: { $ne: id } 
+        _id: { $ne: id }
       });
-
-      if (duplicate) {
-        return res.status(400).json({ message: `${loginId} is already exist.` });
-      }
+      if (duplicate)
+        return res.status(400).json({ message: `${loginId} already exists.` });
     }
 
     const updatedEmp = await Employee.findByIdAndUpdate(
       id,
-      { 
-        ...(loginId && { loginId: loginId.toUpperCase() }), 
-        name, 
-        role, 
-        email, 
-        department, 
-        siteId 
+      {
+        ...(loginId && { loginId: loginId.toUpperCase() }),
+        name, role, email, department, siteId
       },
       { new: true, runValidators: true }
     );
 
-    if (!updatedEmp) {
+    if (!updatedEmp)
       return res.status(404).json({ message: 'Employee not found.' });
-    }
 
     res.status(200).json({ message: 'Employee updated successfully.', employee: updatedEmp });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ── DELETE /api/employees/:id (DELETE EMPLOYEE) ───────────────────
+// ── DELETE /api/employees/:id ─────────────────────────────────────
 const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!id || id === 'undefined') {
-      return res.status(400).json({ message: 'A valid Employee ID must be provided to delete.' });
-    }
+    if (!id || id === 'undefined')
+      return res.status(400).json({ message: 'A valid Employee ID must be provided.' });
 
     const deletedEmp = await Employee.findByIdAndDelete(id);
-
-    if (!deletedEmp) {
+    if (!deletedEmp)
       return res.status(404).json({ message: 'Employee not found.' });
-    }
 
-    // Cascading deletes to ensure clean removal
     await Promise.all([
       SalaryStructure.deleteOne({ employeeId: id }),
       EmployeeSettings.deleteOne({ employeeId: id }),
       CharacterProfile.deleteOne({ employeeId: id }),
-      PaymentLedger.deleteOne({ employeeId: id })
+      PaymentLedger.deleteOne({ employeeId: id }),
     ]);
 
     res.status(200).json({ message: 'Employee and all associated records deleted successfully.' });
-
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// ── EXPORTS ───────────────────────────────────────────────────────
 module.exports = { login, seed, updateEmployee, deleteEmployee };
